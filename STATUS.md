@@ -81,15 +81,16 @@ the slowest D1 filter (+5.8%, 50% DD). PBO stays elevated (~0.45) across the
 grid — consistent with the gate's single-symbol REJECT: robustly profitable, but
 still overfit-prone on one instrument.
 
-### Two code findings surfaced by the sweep (documented, not silently changed)
-- **`vol_target_annual` is dead config** — parsed in `config.py` but consumed
-  nowhere in `xau/`. Trend vol-targeting actually happens via `stop_distance`
-  (= `sl_mult * vol * price`), not this field. Either wire it or drop it.
+### Two code findings surfaced by the sweep (now resolved)
+- **`vol_target_annual` was dead config** — parsed in `config.py`, consumed
+  nowhere. **Removed** (2026-06-25): trend vol-targeting is structural via
+  `stop_distance` (= `sl_mult * vol * price`) feeding fixed-fractional sizing, so
+  no behaviour changed.
 - **Trend ignores `labeling.pt_sl`** — `tsmom_signal` hardcodes `pt_mult=10,
   sl_mult=3` (intentional: wide target lets winners run), and the engine prefers
   the signal's own barrier columns. So `labeling.pt_sl` is inert *for trend*
   (it does drive breakout/reversion). The sweep therefore varies `lookbacks` and
-  the `D1` filter, **not** `pt_sl`/`vol_target`, to keep the DSR trial count honest.
+  the `D1` filter, **not** `pt_sl`, to keep the DSR trial count honest.
 
 ## Portfolio weighting — inverse-vol tested, kept OFF (honest negative result)
 
@@ -156,8 +157,8 @@ clever symbol selection/weighting is fragile. **Default stays `all` + `equal`.**
 3. **Gate-threshold calibration** — XAUUSD sits at DSR 0.92, close; tune only with logged rationale.
 4. ~~**Robustness sweep**~~ — **DONE** (`scripts/robustness_sweep.py`; edge is a plateau, see above).
 5. ~~**Portfolio weighting**~~ — **DONE** (inverse-vol tested; underperforms equal). ~~Follow-up: gate-aware basket~~ — **DONE** (selection on trailing Sharpe also underperforms; see above). Both confirm equal-weight diversification is the baseline to beat.
-6. **Hygiene** — `ruff` lint (GitHub Actions CI live: pytest + synthetic smoke-test).
-7. *(Cleanup)* wire-or-drop the dead `vol_target_annual` knob flagged above.
+6. ~~**Hygiene**~~ — **DONE**: `ruff` clean (config in `pyproject.toml`, run in CI) + GitHub Actions (pytest + synthetic smoke-test).
+7. ~~*(Cleanup)* dead `vol_target_annual`~~ — **DONE** (removed; vol-targeting is structural).
 
 ## Out of scope (by design)
 - Live order routing (research-only).

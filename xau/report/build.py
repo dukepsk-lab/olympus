@@ -12,7 +12,6 @@ import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
-import numpy as np  # noqa: E402
 
 from ..backtest.engine import BacktestResult  # noqa: E402
 from ..gate import GateResult  # noqa: E402
@@ -112,7 +111,8 @@ def save_equity_plot(result: BacktestResult, gate_result: GateResult,
     ax.axhline(result.starting_equity, color="k", ls=":", lw=0.8)
     stamp = f"{gate_result.verdict}"
     ax.set_title(f"{title or result.symbol}  --  {stamp}", fontsize=12)
-    ax.set_xlabel("time"); ax.set_ylabel("wealth")
+    ax.set_xlabel("time")
+    ax.set_ylabel("wealth")
     ax.legend(fontsize=8.5, loc="upper left")
     ax.grid(alpha=0.25)
     plt.tight_layout()

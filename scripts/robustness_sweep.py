@@ -9,7 +9,7 @@ For each (lookback-set x pt_sl) grid point we run the SAME net-of-cost pipeline
 and gate as ``run_research.py`` -- backtest -> CPCV/DSR/PBO -> regime buckets ->
 PromotionGate -- and record every trial to the shared TrialLedger (so the DSR
 deflation honestly reflects how many configs were tried; the ledger dedupes by
-signature, and we now fold pt_sl/vol_target into the trend signature).
+signature, and the trend signature now records lookbacks + the D1 filter).
 
     python scripts/robustness_sweep.py --config config/csv.yaml --symbol XAUUSD
 
@@ -45,9 +45,9 @@ from run_research import run_one  # noqa: E402
 # whether the chosen config is on a plateau or a spike. Both axes are knobs that
 # DEMONSTRABLY move the trend backtest: the momentum lookbacks (faster -> slower;
 # research says trend is strongest slow) and the D1 higher-TF filter (incl. OFF).
-# We deliberately do NOT sweep pt_sl or vol_target_annual: the trend signal
-# hardcodes its barrier mults and never reads vol_target, so those are inert for
-# trend -- sweeping them would fake the trial count, not stress the edge.
+# We deliberately do NOT sweep pt_sl: the trend signal hardcodes its barrier
+# mults, so pt_sl is inert for trend -- sweeping it would fake the trial count,
+# not stress the edge. (vol_target_annual was dead config and has been removed.)
 LOOKBACK_SETS = {
     "fast(10,30,60)":   (10, 30, 60),
     "mid(15,40,80)":    (15, 40, 80),
@@ -92,7 +92,6 @@ def main() -> int:
     set_global_seed(base.seed)
     source = make_source(base)
     ledger = TrialLedger(args.ledger)
-    gate = PromotionGate(base)
     ann = base.backtest.annual_bars
 
     print(f"=== Robustness sweep | {args.symbol} trend | source={base.data.source} "

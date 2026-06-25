@@ -20,7 +20,7 @@ one symbol at a time.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 import numpy as np
 import pandas as pd
@@ -70,9 +70,10 @@ def run_backtest(df: pd.DataFrame, signal: pd.DataFrame, config: Config,
     max_hold = config.labeling.max_holding_bars
     from ..mm.money import position_size, WithdrawalPolicy
     wpolicy = WithdrawalPolicy.from_config(config.money)
-    # signal-level barrier overrides (trend lets winners run; see features/trend)
+    # signal-level profit-take override (trend lets winners run; see features/trend).
+    # The stop side needs no override here: stop_distance already encodes sl_mult
+    # (= sl_mult * vol * price), and the engine stops off stop_distance directly.
     sig_pt = signal["pt_mult"].to_numpy(float) if "pt_mult" in signal else None
-    sig_sl = signal["sl_mult"].to_numpy(float) if "sl_mult" in signal else None
 
     start_eq = float(starting_equity if starting_equity is not None
                      else config.backtest.starting_equity)

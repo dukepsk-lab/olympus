@@ -197,11 +197,11 @@ class SyntheticSource(DataSource):
 
     def _load_mid(self, symbol: str, timeframe: str,
                   start: str | None, end: str | None) -> pd.DataFrame:
-        spec = self._spec(symbol)
         base = SYNTH_BASE.get(symbol, dict(price=100.0, ann_vol=0.20, drift=0.0))
         price0 = float(base["price"])
         ann_vol = float(base["ann_vol"])
-        drift_ann = float(base["drift"])
+        # NB: base["drift"] is intentionally NOT applied as a constant -- the trend
+        # drift is the AR(1) `mu` process below (regimes only scale volatility).
 
         n_bars, index = self._bar_index(timeframe, start, end)
         regimes = self._shared_regimes(n_bars)

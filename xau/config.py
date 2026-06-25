@@ -71,8 +71,11 @@ class CostsConfig:
 class TrendConfig:
     lookbacks: tuple[int, ...] = (20, 60, 120)
     d1_lookbacks: tuple[int, ...] = (20, 50)
-    vol_target_annual: float = 0.15
     vol_halflife: int = 20
+    # NB: vol-targeting is NOT a separate scalar here -- it is achieved structurally
+    # by stop_distance (= sl_mult * vol * price) feeding fixed-fractional sizing, so
+    # per-trade risk is ~constant in vol. A standalone `vol_target_annual` was dead
+    # config (parsed, never read) and was removed.
 
 
 @dataclass(frozen=True)
@@ -283,7 +286,6 @@ def load_config(path: str | Path) -> Config:
         trend=TrendConfig(
             lookbacks=_as_tuple(ft.get("lookbacks", (20, 60, 120))),
             d1_lookbacks=_as_tuple(ft.get("d1_lookbacks", (20, 50))),
-            vol_target_annual=float(ft.get("vol_target_annual", 0.15)),
             vol_halflife=int(ft.get("vol_halflife", 20)),
         ),
         breakout=BreakoutConfig(

@@ -9,8 +9,9 @@ PyYAML>=6.0,<7.0
 # Optional meta-labelling (thin layer, OFF by default). Uncomment to enable.
 # lightgbm>=4.0,<5.0
 
-# Tests
+# Tests + lint
 pytest>=7.0
+ruff>=0.5
 
 # NOTE on MetaTrader5:
 # The MT5 python package is imported lazily inside MT5Source only when a live

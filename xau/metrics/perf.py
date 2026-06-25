@@ -190,7 +190,8 @@ def compute_performance(bar_returns: np.ndarray | None = None,
         perf.t_stat = t_stat_mean(r)
         rr = r[np.isfinite(r)]
         if rr.size >= 3 and rr.std(ddof=1) > _EPS:
-            mu = rr.mean(); sd = rr.std(ddof=1)
+            mu = rr.mean()
+            sd = rr.std(ddof=1)
             perf.skew = float(((rr - mu) ** 3).mean() / sd**3)
             perf.excess_kurt = float(((rr - mu) ** 4).mean() / sd**4 - 3.0)
     if trade_pnl is not None and len(trade_pnl):

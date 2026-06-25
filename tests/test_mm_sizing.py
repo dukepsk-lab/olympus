@@ -3,7 +3,6 @@ correlated-risk cap, and the f-sweep qualitative shape.
 """
 from __future__ import annotations
 
-import numpy as np
 import pytest
 
 from xau.mm.money import (
@@ -67,8 +66,7 @@ def test_withdrawal_never_exceeds_equity():
 
 
 def test_correlated_risk_cap():
-    # two correlated symbols each at 1 unit risk -> cap at 3x single
-    single_risk = 0.01 * 10000.0  # 100
+    # two correlated symbols each at 1 unit risk (0.01 * 10000 = 100) -> cap at 3x single
     cap_mult = 3.0
     open_risk = {"XAUUSD": 100.0, "US30": 100.0, "BTCUSD": 100.0, "EURUSD": 100.0}
     groups = [("XAUUSD", "US30", "BTCUSD")]

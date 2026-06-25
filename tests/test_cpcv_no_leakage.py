@@ -31,7 +31,6 @@ def test_no_train_span_overlaps_test_block(n_splits, n_test):
     X, t1, end_pos = _make_data(n=120, span=4)
     cpcv = CombinatorialPurgedKFold(n_splits=n_splits, n_test_groups=n_test,
                                     embargo_pct=0.05)
-    n = len(X)
     for train_pos, test_pos in cpcv.split(X, t1):
         test_set = set(int(p) for p in test_pos)
         train_set = set(int(p) for p in train_pos)
@@ -45,7 +44,8 @@ def test_no_train_span_overlaps_test_block(n_splits, n_test):
             if p == prev + 1:
                 prev = p
             else:
-                blocks.append((s, prev)); s = prev = p
+                blocks.append((s, prev))
+                s = prev = p
         blocks.append((s, prev))
 
         for i in train_set:
@@ -75,7 +75,8 @@ def test_embargo_excludes_post_block_band(embargo_pct):
             if p == prev + 1:
                 prev = p
             else:
-                blocks.append((s, prev)); s = prev = p
+                blocks.append((s, prev))
+                s = prev = p
         blocks.append((s, prev))
         train_set = set(int(p) for p in train_pos)
         for (a, b) in blocks:
@@ -97,7 +98,6 @@ def test_exact_boundary_t1_on_first_test_bar_is_purged():
     cpcv = CombinatorialPurgedKFold(n_splits=6, n_test_groups=1, embargo_pct=0.0)
     for train_pos, test_pos in cpcv.split(X, t1):
         test_min = int(min(test_pos))
-        test_set = set(int(p) for p in test_pos)
         # the bar immediately before the test block has t1 == first test bar
         i_before = test_min - 1
         if i_before >= 0:

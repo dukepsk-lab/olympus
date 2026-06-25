@@ -43,9 +43,9 @@ def _signals_for(strategy: str, df, d1, regime, news_mask, config: Config):
     """Return (signal_frame, params_dict, filters_dict) for a strategy family."""
     if strategy == "trend":
         # Signature records the knobs that ACTUALLY move the trend backtest:
-        # lookbacks and the D1 higher-TF filter. (pt_sl/vol_target_annual are
-        # inert for trend -- the signal hardcodes its barrier mults -- so they
-        # are deliberately excluded to keep the DSR trial count honest.)
+        # lookbacks and the D1 higher-TF filter. (pt_sl is inert for trend -- the
+        # signal hardcodes its barrier mults -- so it is deliberately excluded to
+        # keep the DSR trial count honest.)
         return (tsmom_signal(df, config.features.trend, config.labeling, d1),
                 {"lookbacks": list(config.features.trend.lookbacks),
                  "d1_lookbacks": list(config.features.trend.d1_lookbacks)},

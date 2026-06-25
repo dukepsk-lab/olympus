@@ -81,9 +81,13 @@ def opening_range_breakout(
             if news[p]:
                 continue
             if not fired_long and expand and high[p] > or_high:
-                side[p] = 1; conviction[p] = 0.5; fired_long = True
+                side[p] = 1
+                conviction[p] = 0.5
+                fired_long = True
             elif not fired_short and expand and low[p] < or_low:
-                side[p] = -1; conviction[p] = 0.5; fired_short = True
+                side[p] = -1
+                conviction[p] = 0.5
+                fired_short = True
     return _finalize(df, side, conviction, vol,
                      pt_mult=labeling.pt_sl[0], sl_mult=labeling.pt_sl[1])
 
