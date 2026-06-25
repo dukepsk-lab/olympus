@@ -67,6 +67,44 @@ Swapping `data.source` between `synthetic | csv | mt5` in the YAML requires **no
 code changes**. `MT5Source` imports `MetaTrader5` lazily and is never exercised by
 tests.
 
+## Project status & roadmap
+
+### Done & verified
+- **Full pipeline shipped**, scaffold → `run_research.py` (17 modules, config-driven).
+- **33 tests green**, including the two critical guards: CPCV **no-leakage**
+  (off-by-one + exact-boundary + embargo monotonicity) and **no-mid-fill**
+  (`fill_price` never equals mid; spread straddles mid).
+- **End-to-end runs** on synthetic **and** CSV — swapping `data.source` needs
+  zero code change (verified byte-identical output). `MT5Source` is lazy.
+- **Reproducible** — deterministic seed; `zlib.crc32` stable hash (no `hash()`).
+- **Honest outcome on synthetic:** every single-symbol config and the diversified
+  basket **REJECT** under the strict default gate — the system's intended job.
+  The pass-path is *confirmed working* (GBPUSD trend passes DSR 0.96 + t-stat
+  3.13; fails only PBO), so the gate is calibrated, not rigged.
+- Bugs caught & fixed during the build: non-deterministic `hash()` → `zlib`;
+  PnL using `point_value` instead of `contract_size` (a 100× gold error);
+  `max_drawdown` sign error; DSR per-obs vs annualised unit mismatch.
+
+### What's next (priority order)
+1. **Real data.** Point `CsvSource` at your broker tape / enable `MT5Source`
+   live and re-run the focal XAUUSD. The synthetic generator is a *documented
+   assumption* — every verdict here is provisional until confirmed on real tape.
+2. **D1 slow-trend overlay.** The research says the TSMOM edge is strongest at
+   slower frequencies; add a `D1` signal merge to the `H4` base (config hooks
+   already exist).
+3. **Gate-threshold calibration on real tape.** Defaults are deliberately
+   strict; tune PBO/DSR cutoffs only with a logged rationale — never auto-retune.
+4. **Robustness sweep.** Vary `f`, barrier multipliers, lookback; append each to
+   the `TrialLedger` and re-check DSR/PBO stability (no cherry-picking).
+5. **Portfolio weighting.** Basket is currently equal-fraction; consider
+   vol-target / inverse-vol weighting across the universe.
+6. **Hygiene:** `ruff` lint pass + GitHub Actions CI (test target exists).
+
+### Out of scope / explicitly deferred
+- Live execution / order routing (research-only by design).
+- ML-based alpha (the evidence-graded edge here is rules-based TSMOM).
+- Hardcoded macro rules (gold↔real-yield etc.) — intentionally excluded.
+
 ## Repository layout
 
 ```
