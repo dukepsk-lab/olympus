@@ -1,0 +1,194 @@
+# =============================================================================
+#  XAU Research System -- default configuration
+#  Every value here is a documented assumption, NOT an optimised fit.
+#  All metrics reported by the pipeline are NET OF COST (spread+commission+slip).
+# =============================================================================
+seed: 7                       # single global seed for reproducibility
+
+# ----------------------------------------------------------------------------
+#  Data
+# ----------------------------------------------------------------------------
+data:
+  source: synthetic           # synthetic | csv | mt5  (swap requires NO code change)
+  timeframe: H4               # signal/label timeframe
+  d1_overlay: true            # optional slower D1 trend filter
+  csv_dir: data/ohlc          # used only when source == csv
+  start: "2020-01-01"
+  end: "2025-12-31"
+  bars: 6000                  # synthetic length per symbol if start/end unused
+
+universe:
+  - XAUUSD
+  - EURUSD
+  - GBPUSD
+  - USDJPY
+  - US30
+  - BTCUSD
+
+# ----------------------------------------------------------------------------
+#  Per-symbol contracts + costs.  point_value ($) = point * contract_size.
+#  These are realistic retail MT5 values, used as DEFAULTS only -- always run
+#  the pipeline against your own broker's tick/spread tape before risking capital.
+# ----------------------------------------------------------------------------
+symbols:
+  XAUUSD:
+    digits: 2
+    point: 0.01              # 1.0 price-dollar = 100 points
+    contract_size: 100       # 1 lot = 100 oz -> point_value = 1.0 $/point/lot
+    base_spread_points: 25.0 # ~$0.25 typical
+    commission_per_lot: 3.5  # one-way, $/lot
+    slippage_points: 2.0
+  EURUSD:
+    digits: 5
+    point: 0.00001
+    contract_size: 100000
+    base_spread_points: 10.0
+    commission_per_lot: 3.5
+    slippage_points: 1.0
+  GBPUSD:
+    digits: 5
+    point: 0.00001
+    contract_size: 100000
+    base_spread_points: 12.0
+    commission_per_lot: 3.5
+    slippage_points: 1.0
+  USDJPY:
+    digits: 3
+    point: 0.001
+    contract_size: 100000
+    base_spread_points: 10.0
+    commission_per_lot: 3.5
+    slippage_points: 1.0
+  US30:
+    digits: 1
+    point: 0.1
+    contract_size: 1.0       # $1 per index point per lot
+    base_spread_points: 10.0
+    commission_per_lot: 2.5
+    slippage_points: 2.0
+  BTCUSD:
+    digits: 2
+    point: 0.01
+    contract_size: 1.0       # $1 per $1 move
+    base_spread_points: 80.0
+    commission_per_lot: 2.5
+    slippage_points: 20.0
+
+# ----------------------------------------------------------------------------
+#  Sessions (GMT). Used for session-tagging + spread widening.
+# ----------------------------------------------------------------------------
+sessions:
+  asian:    [0, 7]
+  london:   [7, 12]
+  overlap:  [12, 16]
+  ny:       [16, 21]
+
+costs:
+  news_spread_multiplier: 3.0
+  session_spread_multiplier:
+    asian: 1.5
+    london: 1.0
+    overlap: 1.0
+    ny: 1.2
+  news_window_minutes: 30   # +/- minutes around a high-impact event treated as news
+
+# ----------------------------------------------------------------------------
+#  Features / signals
+# ----------------------------------------------------------------------------
+features:
+  trend:
+    lookbacks: [20, 60, 120]   # H4 bars; default toward SLOWER end (research §1,§5)
+    d1_lookbacks: [20, 50]     # slow overlay, only-when-aligned
+    vol_target_annual: 0.15    # volatility-scaling target
+    vol_halflife: 20
+  breakout:
+    opening_range_bars: 3      # min bars needed to define the range session
+    min_range_atr_multiple: 0.5
+    expansion_atr_multiple: 0.9
+    news_no_trade_minutes: 30
+    range_session: asian               # session that DEFINES the opening range
+    breakout_sessions: [london, ny, overlap]  # sessions eligible to trigger a break
+  reversion:
+    enabled: false             # OFF by default until it clears the gate
+    zscore_window: 50
+    zscore_entry: 2.0
+    rsi_window: 14
+  regime:
+    hurst_window: 200
+    hurst_max_lag: 20
+    adx_period: 14
+    vol_halflife: 50
+    hurst_trend: 0.55
+    hurst_range: 0.45
+    adx_trend: 25.0
+    adx_range: 20.0
+
+# ----------------------------------------------------------------------------
+#  Labeling (triple barrier)
+# ----------------------------------------------------------------------------
+labeling:
+  pt_sl: [3.0, 1.5]            # profit-take, stop multiples of per-bar vol.
+                              # ASYMMETRIC on purpose: trend's documented edge is
+                              # a LOW win rate + HIGH payoff (research section 1).
+                              # A wider target than stop lets winners run; the
+                              # vertical barrier caps the holding time.
+  vol_halflife: 20
+  max_holding_bars: 60         # vertical barrier cap (H4 bars)
+
+# ----------------------------------------------------------------------------
+#  Money management -- two SEPARATE roles (research §4):
+#   * risk_fraction  = the RUIN lever (anti-Martingale, scales w/ equity only)
+#   * withdrawal     = the CASH-LOCKING / variance lever (does NOT change %DD)
+# ----------------------------------------------------------------------------
+money:
+  risk_fraction: 0.01          # per-trade; allowed band [0.0075, 0.015]
+  risk_fraction_band: [0.0075, 0.015]
+  ruin_level: 0.5              # active equity <= ruin_level*start -> ruin flag
+  withdrawal:
+    wd_share: 0.40             # fraction of gains above each new HWM
+    cadence_trades: 17         # ~monthly at 200 trades/yr (hybrid cadence)
+    house_money_multiple: 2.0  # withdraw principal once total >= 2x
+  correlated_risk_cap_multiple: 3.0   # max simultaneous risk on a correlated group
+  correlated_groups:
+    - [XAUUSD, US30, BTCUSD]          # risk-off correlated cluster
+  f_sweep_values: [0.005, 0.0075, 0.01, 0.015, 0.02, 0.03, 0.04]
+
+# ----------------------------------------------------------------------------
+#  Validation
+# ----------------------------------------------------------------------------
+validation:
+  cpcv:
+    n_splits: 10
+    n_test_groups: 2
+    embargo_pct: 0.01
+  pbo:
+    n_partitions: 16
+  walkforward:
+    train_bars: 1500
+    step_bars: 500
+  regime_buckets:
+    covid_shock:   ["2020-03-01", "2020-08-31"]
+    fed_hiking:    ["2022-03-01", "2023-03-31"]
+    rally_2023_25: ["2023-04-01", "2025-12-31"]
+    range:         ["2021-01-01", "2022-02-28"]
+
+# ----------------------------------------------------------------------------
+#  Promotion gate thresholds (research §6.5). ALL required to PROMOTE.
+# ----------------------------------------------------------------------------
+gate:
+  dsr_min: 0.95
+  pbo_max: 0.20
+  pbo_hard_reject: 0.50
+  cpcv_positive_frac_min: 0.70
+  tstat_min: 3.0
+  regime_profitable_min: 3        # of 4 buckets net-profitable
+  min_net_trades: 300
+  regime_exposure_min: 3          # distinct regimes with trades
+  median_calmar_min: 0.30
+
+# ----------------------------------------------------------------------------
+#  Backtest
+# ----------------------------------------------------------------------------
+backtest:
+  starting_equity: 10000.0
+  annual_bars: 1460               # ~H4 bars per year (6.5 trading days/wk * 24h... approx)
