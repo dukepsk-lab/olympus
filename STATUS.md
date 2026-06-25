@@ -218,8 +218,34 @@ default.**
 ## In progress
 - (none active)
 
+## Why not just throw ML at it?
+XAUUSD's REJECT is bound by **t-stat 1.64 < 3.0** and **PBO 0.336 > 0.20** — a
+statistical-power / sample-size problem, not a "the model isn't smart enough"
+problem (the edge already has the right convex shape and clears 3/4 regimes).
+A more flexible model on the same ~730-trade single-symbol sample can only make
+this *worse*: more fitted parameters inflates PBO, and the honest `TrialLedger`
+deflates DSR harder per extra trial. The principled fix is **more independent
+evidence**, not more model capacity — hence breadth (more uncorrelated markets)
+and history (more bars) are next, not a model swap.
+
 ## Next (priority order)
-1. **Extend the real tape pre-2021** — fill the empty `covid_shock` regime bucket (more regime coverage + statistical power).
+1. ~~**Extend the real tape pre-2021**~~ — **DONE**: tape now runs 2018-01-02 →
+   2026-06-25 (~13.5k bars/symbol), filling the `covid_shock`/`fed_hiking`
+   regime buckets. Lifted XAUUSD regime breadth 2/4 → 3/4 and CPCV+ to 71%.
+1b. **Breadth expansion (prepped, blocked on MT5 access)** — TSMOM's evidence
+   base (Moskowitz-Ooi-Pedersen) gets its power from diversifying across ~50+
+   uncorrelated markets; we have 6, and only 2 (XAUUSD, BTCUSD) carry a real
+   trend edge on the full tape. This is the highest-leverage lever left for the
+   binding t-stat/PBO failures. Added documented-assumption `SymbolSpec`s for
+   4 candidates spanning new asset classes not yet in the universe — **AUDUSD**
+   (commodity-currency FX), **XAGUSD** (silver, metals diversifier vs. gold),
+   **USOIL** (energy, a classic TSMOM market), **NAS100** (tech equity index,
+   different sector tilt than US30) — in `config/{default,csv}.yaml`. They are
+   **deliberately NOT in `universe:`** yet (no real tape exists for them).
+   Once MT5 is reachable: `python scripts/fetch_mt5.py --config config/csv.yaml
+   --symbol AUDUSD --symbol XAGUSD --symbol USOIL --symbol NAS100` (real spread
+   pulled automatically, same as the existing 6), then add them to `universe:`
+   and re-run the basket before trusting any number from them.
 2. ~~**D1 slow-trend overlay**~~ — **DONE**: added `merge` mode; underperforms the `filter` veto on this tape (see above). A *standalone* D1 strategy is data-starved here (~1,160 daily bars < 300-trade gate) — needs the longer history in #1.
 3. ~~**Gate-threshold calibration**~~ — **DONE**: named profiles (strict default + documented single_hypothesis), diagnostic in scripts/gate_calibration.py. Loosening cannot rescue XAUUSD (multi-fail) — see above.
 4. ~~**Robustness sweep**~~ — **DONE** (`scripts/robustness_sweep.py`; edge is a plateau, see above).

@@ -105,6 +105,42 @@ sessions:
   - 12
   - 16
 symbols:
+  # --- breadth candidates (specs prepped, NOT yet in `universe:` below) -----
+  # No real tape exists for these yet (MT5 access pending). Specs are a
+  # documented ASSUMPTION (typical retail CFD terms), the same way
+  # SyntheticSource's price/vol levels are -- NOT a broker-confirmed fact.
+  # Once MT5 is reachable: add the symbol to `universe:`, run
+  # `scripts/fetch_mt5.py` (it will pull real spread automatically, same as
+  # the existing 6), then re-validate before trusting any number from it.
+  AUDUSD:
+    base_spread_points: 12.0
+    commission_per_lot: 0.0
+    contract_size: 100000
+    digits: 5
+    point: 1.0e-05
+    slippage_points: 1.0
+  NAS100:
+    base_spread_points: 20.0
+    commission_per_lot: 0.0
+    contract_size: 1.0
+    digits: 1
+    point: 0.1
+    slippage_points: 3.0
+  USOIL:
+    base_spread_points: 5.0
+    commission_per_lot: 0.0
+    contract_size: 1000
+    digits: 2
+    point: 0.01
+    slippage_points: 3.0
+  XAGUSD:
+    base_spread_points: 25.0
+    commission_per_lot: 0.0
+    contract_size: 5000
+    digits: 3
+    point: 0.001
+    slippage_points: 5.0
+  # --- live universe (real IUX tape committed in data/ohlc/) ----------------
   BTCUSD:
     base_spread_points: 80.0
     commission_per_lot: 0.0
@@ -147,6 +183,10 @@ symbols:
     digits: 2
     point: 0.01
     slippage_points: 2.0
+# Breadth candidates (AUDUSD, NAS100, USOIL, XAGUSD specs above) are
+# deliberately NOT listed here yet -- no real tape for them. Add a symbol to
+# this list only after `scripts/fetch_mt5.py` has written its CSV under
+# data/ohlc/, never before (an entry with no CSV will crash the run).
 universe:
 - XAUUSD
 - EURUSD
