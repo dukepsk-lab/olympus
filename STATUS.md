@@ -50,13 +50,46 @@ Failed checks: PBO 0.673 > hard-reject 0.5 · DSR 0.447 (deflated by the 6 unive
 
 ## Done
 - Full 17-module pipeline (scaffold → `run_research.py`), config-driven.
-- **37 tests green** incl. CPCV no-leakage, no-mid-fill & ledger-dedup guards.
+- **41 tests green** incl. CPCV no-leakage, no-mid-fill, ledger-dedup & sweep guards.
 - `SyntheticSource` / `CsvSource` / `MT5Source` — swap needs zero code change.
 - `scripts/fetch_mt5.py` — live MT5 fetch; pulled full universe from IUX demo.
 - Reproducible (deterministic seed; `zlib.crc32` stable hash).
 - Validated on real broker tape (IUX) — XAUUSD trend confirmed profitable net-of-cost.
 - Bugs caught & fixed: `hash()` non-determinism; `point_value` vs `contract_size` (100× gold error); `max_drawdown` sign; DSR per-obs vs annualised units.
 - **Ledger dedup hardening:** DSR `n_trials` (and the trial-Sharpe variance) now count **distinct config signatures**, not raw appends — re-running the same config no longer drifts the DSR. The XAUUSD-trend DSR 0.924 above reproduces exactly on a clean ledger. (`xau/validation/ledger.py`, `tests/test_ledger_dedup.py`.)
+- **Robustness sweep** (`scripts/robustness_sweep.py`, roadmap #4): the focal edge is a **plateau, not a spike**. See below.
+
+## Robustness sweep — XAUUSD trend (real IUX tape, net of cost)
+
+16-point grid over `lookbacks × D1-filter` (the two knobs that demonstrably move
+the trend backtest), each a distinct ledger trial through the same gate:
+
+| metric | value |
+|---|---|
+| net-Sharpe > 0 | **16/16 (100%)** |
+| Sharpe median / min / max | +0.84 / +0.24 / +1.24 |
+| Sharpe IQR (P25..P75) | +0.65 .. +1.09 |
+| net-return median / range | +51% / +5.8% .. +89.5% |
+| PBO median / max | 0.45 / 0.63 |
+| PROMOTED | 0/16 (gate stays strict) |
+
+**Reads as a genuine edge:** every perturbation stays net-positive — the sign
+never flips. The shipped default (`(20,60,120)` + `d1(20,50)`, +0.72 Sharpe /
++40.8%) sits in the **lower half** of the plateau, so the headline number is
+**conservative, not cherry-picked**. The one soft spot is `mid` lookbacks with
+the slowest D1 filter (+5.8%, 50% DD). PBO stays elevated (~0.45) across the
+grid — consistent with the gate's single-symbol REJECT: robustly profitable, but
+still overfit-prone on one instrument.
+
+### Two code findings surfaced by the sweep (documented, not silently changed)
+- **`vol_target_annual` is dead config** — parsed in `config.py` but consumed
+  nowhere in `xau/`. Trend vol-targeting actually happens via `stop_distance`
+  (= `sl_mult * vol * price`), not this field. Either wire it or drop it.
+- **Trend ignores `labeling.pt_sl`** — `tsmom_signal` hardcodes `pt_mult=10,
+  sl_mult=3` (intentional: wide target lets winners run), and the engine prefers
+  the signal's own barrier columns. So `labeling.pt_sl` is inert *for trend*
+  (it does drive breakout/reversion). The sweep therefore varies `lookbacks` and
+  the `D1` filter, **not** `pt_sl`/`vol_target`, to keep the DSR trial count honest.
 
 ## In progress
 - (none active)
@@ -65,8 +98,9 @@ Failed checks: PBO 0.673 > hard-reject 0.5 · DSR 0.447 (deflated by the 6 unive
 1. **Extend the real tape pre-2021** — fill the empty `covid_shock` regime bucket (more regime coverage + statistical power).
 2. **D1 slow-trend overlay** — TSMOM edge is strongest at slower frequencies (config hooks exist).
 3. **Gate-threshold calibration** — XAUUSD sits at DSR 0.92, close; tune only with logged rationale.
-4. **Robustness sweep** — vary `f`, barrier mults, lookback → `TrialLedger` → re-check DSR/PBO stability.
+4. ~~**Robustness sweep**~~ — **DONE** (`scripts/robustness_sweep.py`; edge is a plateau, see above).
 5. **Portfolio weighting** — vol-target / inverse-vol (FX pairs dragged the basket).
+   *(Optional cleanup: wire-or-drop the dead `vol_target_annual` knob flagged above.)*
 6. **Hygiene** — `ruff` lint (GitHub Actions CI live: pytest + synthetic smoke-test).
 
 ## Out of scope (by design)
