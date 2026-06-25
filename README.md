@@ -60,12 +60,17 @@ python scripts/run_research.py --config config/default.yaml --symbol universe --
 # write synthetic OHLC to CSV (then set data.source: csv in the config):
 python scripts/make_synthetic.py --config config/default.yaml --out data/ohlc
 
+# fetch REAL bars from a live MT5 terminal (e.g. IUX Markets demo) -> data/ohlc/:
+python scripts/fetch_mt5.py --config config/default.yaml --out data/ohlc
+python scripts/run_research.py --config config/csv.yaml --symbol XAUUSD   # real tape
+
 pytest                         # 33 tests incl. CPCV no-leakage & no-mid-fill
 ```
 
 Swapping `data.source` between `synthetic | csv | mt5` in the YAML requires **no
-code changes**. `MT5Source` imports `MetaTrader5` lazily and is never exercised by
-tests.
+code changes**. `MT5Source` / `fetch_mt5.py` import `MetaTrader5` lazily and reuse
+the terminal's last login (pass `--login/--password/--server/--mt5-path` to
+override). `MetaTrader5` is never exercised by tests.
 
 ## Project status & roadmap
 
@@ -81,23 +86,34 @@ tests.
   basket **REJECT** under the strict default gate — the system's intended job.
   The pass-path is *confirmed working* (GBPUSD trend passes DSR 0.96 + t-stat
   3.13; fails only PBO), so the gate is calibrated, not rigged.
+- **VALIDATED ON REAL TAPE (IUX Markets demo, H4, 2021-11 → 2026-06, ~6.6k
+  bars/symbol):** `fetch_mt5.py` pulled the full universe with zero code changes.
+  The focal **XAUUSD trend is genuinely profitable net-of-cost** — Sharpe **+0.71**,
+  **+40.4%**, max DD **18.7%**, win rate **27.9%**, PF 1.19 — the exact
+  low-win-rate/high-payoff shape the research predicts, edge concentrated in the
+  gold bull regime (Sharpe 0.94). It still **REJECTs** (DSR 0.92, t-stat 1.42 —
+  real edge but not yet statistically conclusive for one symbol). The diversified
+  basket (Sharpe 0.55, max DD just **8.1%**, 80% of CPCV paths positive) also
+  **REJECTs** on PBO 0.67 / DSR deflated by the 6 universe trials. This is the
+  gate correctly demanding more evidence, not a failure.
 - Bugs caught & fixed during the build: non-deterministic `hash()` → `zlib`;
   PnL using `point_value` instead of `contract_size` (a 100× gold error);
   `max_drawdown` sign error; DSR per-obs vs annualised unit mismatch.
 
 ### What's next (priority order)
-1. **Real data.** Point `CsvSource` at your broker tape / enable `MT5Source`
-   live and re-run the focal XAUUSD. The synthetic generator is a *documented
-   assumption* — every verdict here is provisional until confirmed on real tape.
+1. **Extend the real tape.** IUX history starts 2021-11; add a second feed for
+   2018-2020 (incl. the COVID shock regime bucket, currently empty) to give the
+   gate more regime coverage and statistical power.
 2. **D1 slow-trend overlay.** The research says the TSMOM edge is strongest at
    slower frequencies; add a `D1` signal merge to the `H4` base (config hooks
    already exist).
-3. **Gate-threshold calibration on real tape.** Defaults are deliberately
-   strict; tune PBO/DSR cutoffs only with a logged rationale — never auto-retune.
+3. **Gate-threshold calibration on real tape.** XAUUSD now sits at DSR 0.92 —
+   close. Tune PBO/DSR cutoffs only with a logged rationale, never auto-retune.
 4. **Robustness sweep.** Vary `f`, barrier multipliers, lookback; append each to
    the `TrialLedger` and re-check DSR/PBO stability (no cherry-picking).
 5. **Portfolio weighting.** Basket is currently equal-fraction; consider
-   vol-target / inverse-vol weighting across the universe.
+   vol-target / inverse-vol weighting (FX pairs were negative on this tape and
+   dragged the basket — weighting could help).
 6. **Hygiene:** `ruff` lint pass + GitHub Actions CI (test target exists).
 
 ### Out of scope / explicitly deferred
