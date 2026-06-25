@@ -152,6 +152,14 @@ money:
   correlated_groups:
     - [XAUUSD, US30, BTCUSD]          # risk-off correlated cluster
   f_sweep_values: [0.005, 0.0075, 0.01, 0.015, 0.02, 0.03, 0.04]
+  # Diversified-basket capital allocation across the universe:
+  #   equal       = 1/N per symbol (default; best on the IUX tape).
+  #   inverse_vol = causal risk-parity-lite (1/sigma from a LEADING window).
+  # NOTE: on the IUX tape inverse_vol UNDERperforms -- it overweights the calm
+  # FX laggards and underweights the high-vol BTC/gold diversifiers. Kept as an
+  # option, not the default. (See STATUS.md "Portfolio weighting".)
+  portfolio_weighting: equal
+  weight_vol_window: 250        # leading bars for the causal vol estimate
 
 # ----------------------------------------------------------------------------
 #  Validation

@@ -44,13 +44,13 @@ Failed checks: DSR 0.923 < 0.95 · t-stat 1.42 < 3.0 · PBO 0.263 > 0.20 · CPCV
 | Median Calmar (paths) | 0.86 |
 | **Verdict** | **REJECTED** |
 
-Failed checks: PBO 0.673 > hard-reject 0.5 · DSR 0.447 (deflated by the 6 universe trials) · t-stat 1.25 < 3.0. Diversification works (8.1% max DD) but FX pairs dragged returns and path-to-path variance flags overfit risk.
+Failed checks: PBO 0.673 > hard-reject 0.5 · DSR 0.447 (deflated by the 6 universe trials) · t-stat 1.25 < 3.0. Diversification works (8.1% max DD) but FX pairs dragged returns and path-to-path variance flags overfit risk. (Inverse-vol weighting was tested as a fix and made it **worse** — see "Portfolio weighting" below.)
 
 ---
 
 ## Done
 - Full 17-module pipeline (scaffold → `run_research.py`), config-driven.
-- **41 tests green** incl. CPCV no-leakage, no-mid-fill, ledger-dedup & sweep guards.
+- **47 tests green** incl. CPCV no-leakage, no-mid-fill, ledger-dedup, sweep & weighting guards.
 - `SyntheticSource` / `CsvSource` / `MT5Source` — swap needs zero code change.
 - `scripts/fetch_mt5.py` — live MT5 fetch; pulled full universe from IUX demo.
 - Reproducible (deterministic seed; `zlib.crc32` stable hash).
@@ -91,6 +91,32 @@ still overfit-prone on one instrument.
   (it does drive breakout/reversion). The sweep therefore varies `lookbacks` and
   the `D1` filter, **not** `pt_sl`/`vol_target`, to keep the DSR trial count honest.
 
+## Portfolio weighting — inverse-vol tested, kept OFF (honest negative result)
+
+Added causal **inverse-volatility (risk-parity-lite)** allocation as an option
+(`xau/mm/portfolio.py`, `--weighting inverse_vol`). Weights come from each
+symbol's `1/sigma` over a **leading** window (no look-ahead). Head-to-head on the
+real IUX tape, diversified trend:
+
+| metric | equal (default) | inverse_vol |
+|---|---:|---:|
+| Sharpe (ann.) | **+0.556** | +0.356 |
+| net return | **+18.6%** | +12.7% |
+| max drawdown | **8.1%** | 11.0% |
+| CPCV paths positive | **80%** | 69% |
+| PBO | **0.673** | 0.928 |
+
+**Inverse-vol UNDERperforms here, and the reason is the useful lesson:** it
+overweights the *calm* FX pairs (EUR/GBP → ~23–24% each) — which were the basket's
+**losers** (−10.8%, −19.1%) — and starves the *high-vol* BTC/gold (→ 2%/16%), which
+were the genuine diversifying **winners** (+48.8%, +40.8%). Risk-parity equalises
+risk, it does **not** down-weight losers; "weight by vol" ≠ "weight down the drag."
+The roadmap's hoped-for fix (cut the FX drag) actually needs a *different* lever —
+e.g. gating out symbols that fail their own single-symbol check, or
+return/Sharpe-aware weights (which invite look-ahead/overfitting and must clear
+the gate). **`equal` stays the default;** `inverse_vol` ships as a documented,
+test-covered option. Negative results are results.
+
 ## In progress
 - (none active)
 
@@ -99,9 +125,9 @@ still overfit-prone on one instrument.
 2. **D1 slow-trend overlay** — TSMOM edge is strongest at slower frequencies (config hooks exist).
 3. **Gate-threshold calibration** — XAUUSD sits at DSR 0.92, close; tune only with logged rationale.
 4. ~~**Robustness sweep**~~ — **DONE** (`scripts/robustness_sweep.py`; edge is a plateau, see above).
-5. **Portfolio weighting** — vol-target / inverse-vol (FX pairs dragged the basket).
-   *(Optional cleanup: wire-or-drop the dead `vol_target_annual` knob flagged above.)*
+5. ~~**Portfolio weighting**~~ — **DONE** (inverse-vol tested; underperforms equal on this tape, see above). Open follow-up: a *gate-aware* basket (drop symbols failing their own check) — distinct from vol weighting.
 6. **Hygiene** — `ruff` lint (GitHub Actions CI live: pytest + synthetic smoke-test).
+7. *(Cleanup)* wire-or-drop the dead `vol_target_annual` knob flagged above.
 
 ## Out of scope (by design)
 - Live order routing (research-only).

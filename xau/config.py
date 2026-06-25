@@ -136,6 +136,8 @@ class MoneyConfig:
     correlated_risk_cap_multiple: float = 3.0
     correlated_groups: tuple[tuple[str, ...], ...] = (("XAUUSD", "US30", "BTCUSD"),)
     f_sweep_values: tuple[float, ...] = (0.005, 0.0075, 0.01, 0.015, 0.02, 0.03, 0.04)
+    portfolio_weighting: str = "equal"     # equal | inverse_vol (risk-parity-lite)
+    weight_vol_window: int = 250           # leading bars for causal vol estimate
 
 
 @dataclass(frozen=True)
@@ -330,6 +332,8 @@ def load_config(path: str | Path) -> Config:
         correlated_risk_cap_multiple=float(m.get("correlated_risk_cap_multiple", 3.0)),
         correlated_groups=tuple(tuple(g) for g in m.get("correlated_groups", [])),
         f_sweep_values=_as_tuple(m.get("f_sweep_values", ())),
+        portfolio_weighting=str(m.get("portfolio_weighting", "equal")),
+        weight_vol_window=int(m.get("weight_vol_window", 250)),
     )
 
     v = raw.get("validation", {})
