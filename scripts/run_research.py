@@ -31,6 +31,7 @@ from xau.backtest.engine import run_backtest, BacktestResult
 from xau.validation.ledger import TrialLedger
 from xau.validation.walkforward import regime_bucket_breakdown
 from xau.gate import PromotionGate
+from xau.gate import gate_config_for_profile
 from xau.mm.money import f_sweep
 from xau.mm.portfolio import compute_portfolio_weights, select_by_score
 from xau.metrics.perf import sharpe
@@ -230,6 +231,10 @@ def main() -> int:
     ap.add_argument("--d1-mode", choices=("filter", "merge"), default=None,
                     help="override trend D1 overlay: 'filter' (veto) or 'merge' "
                          "(daily trend as an extra weighted momentum vote)")
+    ap.add_argument("--gate-profile", choices=("strict", "single_hypothesis"),
+                    default="strict",
+                    help="promotion-gate profile (default strict; "
+                         "single_hypothesis relaxes ONLY the t-stat bar 3.0->2.0)")
     args = ap.parse_args()
 
     config = load_config(args.config)
@@ -244,6 +249,12 @@ def main() -> int:
             config, features=dataclasses.replace(
                 config.features,
                 trend=dataclasses.replace(config.features.trend, d1_mode=args.d1_mode)))
+    if args.gate_profile != "strict":
+        import dataclasses
+        config = dataclasses.replace(
+            config, gate=gate_config_for_profile(config.gate, args.gate_profile))
+        print(f"[gate profile: {args.gate_profile} -- t-stat bar relaxed to "
+              f"{config.gate.tstat_min}; all other checks unchanged]")
     set_global_seed(config.seed)
     source = make_source(config)
     ledger = TrialLedger(args.ledger)

@@ -20,12 +20,13 @@ trial returns to strengthen it.
 """
 from __future__ import annotations
 
+import dataclasses
 from dataclasses import dataclass, field
 
 import numpy as np
 import pandas as pd
 
-from .config import Config
+from .config import Config, GateConfig
 from .metrics.perf import calmar
 from .validation.cpcv import CombinatorialPurgedKFold
 from .validation.dsr import (
@@ -33,6 +34,73 @@ from .validation.dsr import (
     moments_from_returns,
 )
 from .validation.pbo import probability_of_backtest_overfitting
+
+
+# ---------------------------------------------------------------------------
+#  Gate profiles -- named, documented threshold sets (NEVER tuned-to-pass).
+# ---------------------------------------------------------------------------
+GATE_PROFILES = ("strict", "single_hypothesis")
+
+
+def gate_config_for_profile(base: GateConfig, profile: str) -> GateConfig:
+    """Return the :class:`GateConfig` for a named profile.
+
+    ``strict`` (default) = the config as written. ``single_hypothesis`` makes ONE
+    principled change and nothing else: the t-stat hurdle drops from 3.0 to 2.0.
+
+    Rationale (logged, auditable -- this is calibration, not rigging): the
+    ``t>=3.0`` bar is Harvey-Liu-Zhu's threshold for a *factor zoo* of hundreds of
+    data-mined candidates. A single PRE-SPECIFIED hypothesis with a decades-long
+    multi-asset prior (TSMOM) is not 300 trials -- its appropriate single-test bar
+    is ~2.0. Every OTHER check is UNCHANGED: DSR (already trial-count-deflated),
+    PBO, CPCV breadth, regime breadth, sample size -- those encode robustness, not
+    multiple testing, and must not be relaxed to manufacture a pass.
+    """
+    if profile == "strict":
+        return base
+    if profile == "single_hypothesis":
+        return dataclasses.replace(base, tstat_min=2.0)
+    raise ValueError(f"unknown gate profile '{profile}'; expected {GATE_PROFILES}")
+
+
+def failed_checks_from_evidence(ev: dict, g: GateConfig) -> list[str]:
+    """Apply ``g``'s thresholds to an already-computed evidence dict.
+
+    Single source of truth for pass/fail, shared by :meth:`PromotionGate.evaluate`
+    and the gate-calibration diagnostic -- so a profile comparison can re-judge the
+    SAME evidence under different thresholds without re-running CPCV, and the two
+    paths can never drift. Order: regime checks, then the scalar thresholds.
+    """
+    failed: list[str] = []
+    nb = ev.get("n_regime_buckets")
+    if "regime_profitable_count" in ev and ev["regime_profitable_count"] < g.regime_profitable_min:
+        failed.append(
+            f"profitable in {ev['regime_profitable_count']}/{nb} regime "
+            f"buckets < {g.regime_profitable_min}"
+        )
+    if "regime_exposure_count" in ev and ev["regime_exposure_count"] < g.regime_exposure_min:
+        failed.append(f"regime exposure {ev['regime_exposure_count']} < {g.regime_exposure_min}")
+    dsr = ev.get("dsr", 0.0)
+    pbo = ev.get("pbo", 1.0)
+    pos_frac = ev.get("cpcv_positive_frac", 0.0)
+    tstat = ev.get("t_stat", 0.0)
+    n_trades = ev.get("n_trades", 0)
+    med_calmar = ev.get("median_calmar_paths", 0.0)
+    if dsr < g.dsr_min:
+        failed.append(f"DSR {dsr:.3f} < {g.dsr_min}")
+    if pbo > g.pbo_hard_reject:
+        failed.append(f"PBO {pbo:.3f} > hard-reject {g.pbo_hard_reject}")
+    elif pbo > g.pbo_max:
+        failed.append(f"PBO {pbo:.3f} > {g.pbo_max}")
+    if pos_frac < g.cpcv_positive_frac_min:
+        failed.append(f"CPCV positive-frac {pos_frac:.3f} < {g.cpcv_positive_frac_min}")
+    if tstat < g.tstat_min:
+        failed.append(f"t-stat {tstat:.2f} < {g.tstat_min}")
+    if n_trades < g.min_net_trades:
+        failed.append(f"net trades {n_trades} < {g.min_net_trades}")
+    if med_calmar <= g.median_calmar_min:
+        failed.append(f"median Calmar {med_calmar:.3f} <= {g.median_calmar_min}")
+    return failed
 
 
 @dataclass
@@ -183,34 +251,16 @@ class PromotionGate:
             n_regimes = sum(1 for d in regime_breakdown.values() if d["n_trades"] > 0)
             ev["regime_profitable_count"] = n_profitable
             ev["regime_exposure_count"] = n_regimes
-            if n_profitable < g.regime_profitable_min:
-                failed.append(
-                    f"profitable in {n_profitable}/{len(regime_breakdown)} regime "
-                    f"buckets < {g.regime_profitable_min}"
-                )
-            if n_regimes < g.regime_exposure_min:
-                failed.append(
-                    f"regime exposure {n_regimes} < {g.regime_exposure_min}"
-                )
+            ev["n_regime_buckets"] = len(regime_breakdown)
 
-        # ---- apply thresholds ----
-        if dsr < g.dsr_min:
-            failed.append(f"DSR {dsr:.3f} < {g.dsr_min}")
-        if pbo > g.pbo_hard_reject:
-            failed.append(f"PBO {pbo:.3f} > hard-reject {g.pbo_hard_reject}")
-        elif pbo > g.pbo_max:
-            failed.append(f"PBO {pbo:.3f} > {g.pbo_max}")
-        if pos_frac < g.cpcv_positive_frac_min:
-            failed.append(f"CPCV positive-frac {pos_frac:.3f} < {g.cpcv_positive_frac_min}")
-        if tstat < g.tstat_min:
-            failed.append(f"t-stat {tstat:.2f} < {g.tstat_min}")
-        if n_trades < g.min_net_trades:
-            failed.append(f"net trades {n_trades} < {g.min_net_trades}")
-        if med_calmar <= g.median_calmar_min:
-            failed.append(f"median Calmar {med_calmar:.3f} <= {g.median_calmar_min}")
+        # ---- apply thresholds (shared with the calibration diagnostic) ----
+        failed.extend(failed_checks_from_evidence(ev, g))
 
         verdict = "PROMOTED" if not failed else "REJECTED"
         return GateResult(verdict=verdict, failed_checks=failed, evidence=ev)
 
 
-__all__ = ["PromotionGate", "GateResult", "cpcv_paths", "build_t1"]
+__all__ = [
+    "PromotionGate", "GateResult", "cpcv_paths", "build_t1",
+    "GATE_PROFILES", "gate_config_for_profile", "failed_checks_from_evidence",
+]

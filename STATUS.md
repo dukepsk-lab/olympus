@@ -53,7 +53,7 @@ Failed checks: PBO 0.672 > hard-reject 0.5 · DSR (deflated by the 6 universe tr
 
 ## Done
 - Full 17-module pipeline (scaffold → `run_research.py`), config-driven.
-- **61 tests green** incl. CPCV no-leakage, no-mid-fill, ledger-dedup, sweep, weighting, selection & real-spread guards.
+- **66 tests green** incl. CPCV no-leakage, no-mid-fill, ledger-dedup, sweep, weighting, selection & real-spread guards.
 - `SyntheticSource` / `CsvSource` / `MT5Source` — swap needs zero code change.
 - `scripts/fetch_mt5.py` — live MT5 fetch; pulled full universe from IUX demo.
 - Reproducible (deterministic seed; `zlib.crc32` stable hash).
@@ -180,13 +180,45 @@ documented, test-covered option.** (Note: a true *standalone* D1 strategy can't
 be validated on this 4.6-year tape — ~1,160 daily bars give far fewer than the
 300-trade gate minimum; that needs the longer history parked on #1.)
 
+## Gate calibration (#3) — diagnostic + documented profile, default stays strict
+
+Done the integrity-preserving way (no tuning-to-pass). Added **named gate
+profiles** (`xau/gate.py`): `strict` (the unchanged default) and
+`single_hypothesis`, which makes **one principled change** — the t-stat bar
+`3.0 → 2.0` — and **nothing else**. Rationale (logged): `t≥3.0` is Harvey-Liu-Zhu's
+bar for a *factor zoo* of hundreds of data-mined candidates; a single
+pre-specified TSMOM hypothesis with a multi-decade prior warrants the
+single-test bar (~2.0). DSR (already trial-deflated), PBO, CPCV breadth, regime
+breadth and sample size are **untouched** — they encode robustness, not multiple
+testing. Selectable via `--gate-profile`; **nothing is promoted unless you pick it.**
+
+**Diagnostic** (`scripts/gate_calibration.py`) computes the evidence once and
+re-judges it under every profile (shared `failed_checks_from_evidence`, so it
+can't drift from the live gate). On XAUUSD:
+
+| check | value | strict | single_hyp |
+|---|---:|:--:|:--:|
+| DSR | 0.924 | fail ≥0.95 | fail ≥0.95 |
+| PBO | 0.263 | fail ≤0.20 | fail ≤0.20 |
+| CPCV+ | 0.622 | fail ≥0.70 | fail ≥0.70 |
+| t-stat | 1.43 | fail ≥3.0 | **fail ≥2.0** |
+| regimes profitable | 2/4 | fail ≥3 | fail ≥3 |
+
+**The honest punchline: loosening cannot rescue XAUUSD.** Its t-stat (1.43) fails
+even the relaxed 2.0 bar, and it *independently* fails regime breadth (2/4), DSR,
+PBO and CPCV. A REJECT that fails on those is **not a t-stat artefact** — only
+more independent evidence (more regimes/history/symbols) fixes it, not a
+threshold. The `single_hypothesis` profile *would* flip a config that is strong
+everywhere except a t-stat in (2.0, 3.0) — none exists here. **`strict` stays
+default.**
+
 ## In progress
 - (none active)
 
 ## Next (priority order)
 1. **Extend the real tape pre-2021** — fill the empty `covid_shock` regime bucket (more regime coverage + statistical power).
 2. ~~**D1 slow-trend overlay**~~ — **DONE**: added `merge` mode; underperforms the `filter` veto on this tape (see above). A *standalone* D1 strategy is data-starved here (~1,160 daily bars < 300-trade gate) — needs the longer history in #1.
-3. **Gate-threshold calibration** — XAUUSD sits at DSR 0.92, close; tune only with logged rationale.
+3. ~~**Gate-threshold calibration**~~ — **DONE**: named profiles (strict default + documented single_hypothesis), diagnostic in scripts/gate_calibration.py. Loosening cannot rescue XAUUSD (multi-fail) — see above.
 4. ~~**Robustness sweep**~~ — **DONE** (`scripts/robustness_sweep.py`; edge is a plateau, see above).
 5. ~~**Portfolio weighting**~~ — **DONE** (inverse-vol tested; underperforms equal). ~~Follow-up: gate-aware basket~~ — **DONE** (selection on trailing Sharpe also underperforms; see above). Both confirm equal-weight diversification is the baseline to beat.
 6. ~~**Hygiene**~~ — **DONE**: `ruff` clean (config in `pyproject.toml`, run in CI) + GitHub Actions (pytest + synthetic smoke-test).

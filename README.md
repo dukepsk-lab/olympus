@@ -72,6 +72,9 @@ python scripts/run_research.py --config config/csv.yaml --symbol universe \
 python scripts/run_research.py --config config/csv.yaml --symbol XAUUSD \
     --strategies trend --d1-mode merge
 
+# gate-calibration diagnostic: re-judge one result under every gate profile:
+python scripts/gate_calibration.py --config config/csv.yaml --symbol XAUUSD
+
 # write synthetic OHLC to CSV (then set data.source: csv in the config):
 python scripts/make_synthetic.py --config config/default.yaml --out data/ohlc
 
@@ -79,7 +82,7 @@ python scripts/make_synthetic.py --config config/default.yaml --out data/ohlc
 python scripts/fetch_mt5.py --config config/default.yaml --out data/ohlc
 python scripts/run_research.py --config config/csv.yaml --symbol XAUUSD   # real tape
 
-pytest                         # 61 tests incl. CPCV no-leakage & no-mid-fill
+pytest                         # 66 tests incl. CPCV no-leakage & no-mid-fill
 ```
 
 Swapping `data.source` between `synthetic | csv | mt5` in the YAML requires **no
@@ -91,7 +94,7 @@ override). `MetaTrader5` is never exercised by tests.
 
 ### Done & verified
 - **Full pipeline shipped**, scaffold → `run_research.py` (17 modules, config-driven).
-- **61 tests green**, including the two critical guards: CPCV **no-leakage**
+- **66 tests green**, including the two critical guards: CPCV **no-leakage**
   (off-by-one + exact-boundary + embargo monotonicity) and **no-mid-fill**
   (`fill_price` never equals mid; spread straddles mid).
 - **End-to-end runs** on synthetic **and** CSV — swapping `data.source` needs
@@ -125,8 +128,13 @@ override). `MetaTrader5` is never exercised by tests.
    underperforms `filter` on this tape (XAUUSD Sharpe 0.72→0.48; basket PBO
    0.67→0.94) — the slow signal's value is as a quality *veto*, not a vote.
    `filter` stays default. See STATUS.
-3. **Gate-threshold calibration on real tape.** XAUUSD now sits at DSR 0.92 —
-   close. Tune PBO/DSR cutoffs only with a logged rationale, never auto-retune.
+3. ~~**Gate-threshold calibration on real tape.**~~ **DONE** — named gate profiles
+   (`xau/gate.py`): `strict` (default, unchanged) and `single_hypothesis`
+   (principled: t-stat bar 3.0→2.0 only, the rest untouched). Diagnostic
+   `scripts/gate_calibration.py` re-judges one evidence set under every profile.
+   Honest result: loosening **cannot** rescue XAUUSD — it fails regime breadth,
+   DSR, PBO and CPCV independently, not just t-stat. `--gate-profile` selectable;
+   nothing is promoted unless you pick it. See STATUS.
 4. **Robustness sweep.** Vary `f`, barrier multipliers, lookback; append each to
    the `TrialLedger` and re-check DSR/PBO stability (no cherry-picking).
 4b. ~~**Robustness sweep.**~~ **DONE** — `scripts/robustness_sweep.py` perturbs
