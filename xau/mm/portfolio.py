@@ -68,6 +68,23 @@ def inverse_vol_weights(vols: Mapping[str, float]) -> dict[str, float]:
     return {s: inv_full[s] / total for s in syms}
 
 
+def select_by_score(scores: Mapping[str, float], min_score: float) -> list[str]:
+    """Gate-aware basket inclusion: keep symbols whose **causal train-window**
+    score (e.g. net Sharpe on the leading slice) is ``>= min_score``, preserving
+    input order.
+
+    The scores MUST be computed on data that precedes the basket's evaluation
+    window -- selecting on the same period you then measure is the classic
+    selection-bias leak this guard exists to avoid.
+
+    If no symbol qualifies, returns ALL symbols: an empty basket is useless, and
+    it is more honest to hand the full set to the strict gate (which will reject)
+    than to silently emit nothing.
+    """
+    kept = [s for s, v in scores.items() if np.isfinite(v) and v >= min_score]
+    return kept or list(scores.keys())
+
+
 def leading_window_vol(prices: pd.Series, window: int) -> float:
     """Std of log-returns over the FIRST ``window`` bars (a causal risk proxy).
 
@@ -115,6 +132,7 @@ __all__ = [
     "VALID_SCHEMES",
     "equal_weights",
     "inverse_vol_weights",
+    "select_by_score",
     "leading_window_vol",
     "compute_portfolio_weights",
 ]

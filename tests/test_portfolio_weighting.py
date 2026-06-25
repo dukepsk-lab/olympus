@@ -13,6 +13,7 @@ from xau.mm.portfolio import (
     equal_weights,
     inverse_vol_weights,
     leading_window_vol,
+    select_by_score,
 )
 
 
@@ -68,3 +69,20 @@ def test_compute_weights_inverse_vol_via_loader():
 def test_unknown_scheme_raises():
     with pytest.raises(ValueError):
         compute_portfolio_weights("magic", ["A"], price_loader=lambda s: None, window=10)
+
+
+def test_select_by_score_keeps_only_qualifiers_in_order():
+    scores = {"XAU": 0.8, "EUR": -0.3, "GBP": -0.5, "BTC": 0.4}
+    assert select_by_score(scores, 0.0) == ["XAU", "BTC"]
+    assert select_by_score(scores, 0.5) == ["XAU"]
+
+
+def test_select_by_score_falls_back_to_all_when_none_qualify():
+    # an empty basket is useless -> hand the full set to the (strict) gate instead
+    scores = {"A": -0.1, "B": -0.2}
+    assert select_by_score(scores, 0.0) == ["A", "B"]
+
+
+def test_select_by_score_ignores_nan_scores():
+    scores = {"A": float("nan"), "B": 0.2}
+    assert select_by_score(scores, 0.0) == ["B"]

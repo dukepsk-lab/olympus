@@ -50,7 +50,7 @@ Failed checks: PBO 0.673 > hard-reject 0.5 · DSR 0.447 (deflated by the 6 unive
 
 ## Done
 - Full 17-module pipeline (scaffold → `run_research.py`), config-driven.
-- **47 tests green** incl. CPCV no-leakage, no-mid-fill, ledger-dedup, sweep & weighting guards.
+- **50 tests green** incl. CPCV no-leakage, no-mid-fill, ledger-dedup, sweep, weighting & selection guards.
 - `SyntheticSource` / `CsvSource` / `MT5Source` — swap needs zero code change.
 - `scripts/fetch_mt5.py` — live MT5 fetch; pulled full universe from IUX demo.
 - Reproducible (deterministic seed; `zlib.crc32` stable hash).
@@ -117,6 +117,36 @@ return/Sharpe-aware weights (which invite look-ahead/overfitting and must clear
 the gate). **`equal` stays the default;** `inverse_vol` ships as a documented,
 test-covered option. Negative results are results.
 
+## Gate-aware basket — selection on trailing performance, also OFF (2nd negative)
+
+Added a **gate-aware** basket (`--basket-mode gate_aware`): pick symbols by their
+**causal train-slice** net Sharpe (default first 30% of the tape), then evaluate
+the kept basket strictly **out-of-sample** on the remaining 70% — a real
+train/test split so selection can't peek at the eval window. Same OOS window is
+also run on the full universe as a baseline.
+
+On the IUX tape the split is select-on `[2020, 2023-06)`, evaluate `[2023-06, 2025]`:
+
+| symbol | train Sharpe | kept? | OOS return |
+|---|---:|:--:|---:|
+| XAUUSD | +0.19 | keep | +37.3% |
+| EURUSD | +0.38 | keep | −16.9% |
+| GBPUSD | +0.17 | keep | −17.7% |
+| USDJPY | +1.08 | keep | +16.4% |
+| US30 | −0.51 | **drop** | +11.9% |
+| BTCUSD | −0.08 | **drop** | **+46.8%** |
+
+**OOS: gate-aware +4.7% (REJECT) vs all-symbols +13.0% (REJECT).** Selection
+*hurt*. It dropped US30 and BTC for weak 2020–23 Sharpe — and BTC was the single
+biggest 2023–25 winner, while the kept FX pairs kept bleeding. This is
+performance-chasing under non-stationarity: **trailing Sharpe did not persist.**
+
+**Combined verdict on the basket experiments:** both proposed fixes for the "FX
+drag" — inverse-vol weighting *and* gate-aware selection — **underperform plain
+equal-weight diversification** on this tape. That is not a disappointment; it is
+the research thesis holding up: broad, cheap diversification is hard to beat, and
+clever symbol selection/weighting is fragile. **Default stays `all` + `equal`.**
+
 ## In progress
 - (none active)
 
@@ -125,7 +155,7 @@ test-covered option. Negative results are results.
 2. **D1 slow-trend overlay** — TSMOM edge is strongest at slower frequencies (config hooks exist).
 3. **Gate-threshold calibration** — XAUUSD sits at DSR 0.92, close; tune only with logged rationale.
 4. ~~**Robustness sweep**~~ — **DONE** (`scripts/robustness_sweep.py`; edge is a plateau, see above).
-5. ~~**Portfolio weighting**~~ — **DONE** (inverse-vol tested; underperforms equal on this tape, see above). Open follow-up: a *gate-aware* basket (drop symbols failing their own check) — distinct from vol weighting.
+5. ~~**Portfolio weighting**~~ — **DONE** (inverse-vol tested; underperforms equal). ~~Follow-up: gate-aware basket~~ — **DONE** (selection on trailing Sharpe also underperforms; see above). Both confirm equal-weight diversification is the baseline to beat.
 6. **Hygiene** — `ruff` lint (GitHub Actions CI live: pytest + synthetic smoke-test).
 7. *(Cleanup)* wire-or-drop the dead `vol_target_annual` knob flagged above.
 

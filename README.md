@@ -64,6 +64,10 @@ python scripts/robustness_sweep.py --config config/csv.yaml --symbol XAUUSD
 python scripts/run_research.py --config config/csv.yaml --symbol universe \
     --strategies trend --weighting inverse_vol
 
+# gate-aware basket: select symbols on a causal train slice, evaluate OOS:
+python scripts/run_research.py --config config/csv.yaml --symbol universe \
+    --strategies trend --basket-mode gate_aware
+
 # write synthetic OHLC to CSV (then set data.source: csv in the config):
 python scripts/make_synthetic.py --config config/default.yaml --out data/ohlc
 
@@ -71,7 +75,7 @@ python scripts/make_synthetic.py --config config/default.yaml --out data/ohlc
 python scripts/fetch_mt5.py --config config/default.yaml --out data/ohlc
 python scripts/run_research.py --config config/csv.yaml --symbol XAUUSD   # real tape
 
-pytest                         # 47 tests incl. CPCV no-leakage & no-mid-fill
+pytest                         # 50 tests incl. CPCV no-leakage & no-mid-fill
 ```
 
 Swapping `data.source` between `synthetic | csv | mt5` in the YAML requires **no
@@ -83,7 +87,7 @@ override). `MetaTrader5` is never exercised by tests.
 
 ### Done & verified
 - **Full pipeline shipped**, scaffold → `run_research.py` (17 modules, config-driven).
-- **47 tests green**, including the two critical guards: CPCV **no-leakage**
+- **50 tests green**, including the two critical guards: CPCV **no-leakage**
   (off-by-one + exact-boundary + embargo monotonicity) and **no-mid-fill**
   (`fill_price` never equals mid; spread straddles mid).
 - **End-to-end runs** on synthetic **and** CSV — swapping `data.source` needs
@@ -127,8 +131,12 @@ override). `MetaTrader5` is never exercised by tests.
    (`xau/mm/portfolio.py`, `--weighting inverse_vol`). Honest negative result: it
    UNDERperforms equal on this tape (Sharpe 0.56→0.36, PBO 0.67→0.93) because it
    overweights the calm FX *laggards* and starves the high-vol BTC/gold
-   *diversifiers*. `equal` stays default; see STATUS. Open follow-up: a
-   *gate-aware* basket that drops symbols failing their own single-symbol check.
+   *diversifiers*. `equal` stays default; see STATUS.
+5b. **Gate-aware basket** (`--basket-mode gate_aware`) — **DONE.** Selects symbols
+   on a causal train slice, evaluates strictly OOS. Also a negative result:
+   trailing-Sharpe selection dropped US30/BTC, and BTC was the OOS winner — so it
+   underperformed all-symbols equal weight (+4.7% vs +13.0% OOS). Both basket
+   experiments confirm broad equal-weight diversification is the baseline to beat.
 6. **Hygiene:** `ruff` lint pass (GitHub Actions CI now runs pytest + a
    synthetic smoke-test on every push/PR — `.github/workflows/ci.yml`).
 

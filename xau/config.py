@@ -138,6 +138,8 @@ class MoneyConfig:
     f_sweep_values: tuple[float, ...] = (0.005, 0.0075, 0.01, 0.015, 0.02, 0.03, 0.04)
     portfolio_weighting: str = "equal"     # equal | inverse_vol (risk-parity-lite)
     weight_vol_window: int = 250           # leading bars for causal vol estimate
+    basket_selection_window: float = 0.3   # fraction of tape used to SELECT symbols
+    basket_min_sharpe: float = 0.0         # keep symbols with train-window Sharpe >=
 
 
 @dataclass(frozen=True)
@@ -334,6 +336,8 @@ def load_config(path: str | Path) -> Config:
         f_sweep_values=_as_tuple(m.get("f_sweep_values", ())),
         portfolio_weighting=str(m.get("portfolio_weighting", "equal")),
         weight_vol_window=int(m.get("weight_vol_window", 250)),
+        basket_selection_window=float(m.get("basket_selection_window", 0.3)),
+        basket_min_sharpe=float(m.get("basket_min_sharpe", 0.0)),
     )
 
     v = raw.get("validation", {})
