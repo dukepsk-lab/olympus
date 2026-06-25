@@ -87,22 +87,40 @@ class TrialLedger:
 
     @property
     def n_trials(self) -> int:
-        """Total number of trials recorded (used as DSR n_trials)."""
+        """Total number of rows recorded (audit count, incl. re-runs)."""
         return len(self.load())
 
+    def _latest_by_signature(self) -> dict[str, dict[str, Any]]:
+        """Most recent record per distinct trial signature (last write wins).
+
+        Re-running the *same* config is not a new trial -- it is the same point
+        in the search space re-measured -- so the DSR deflation must count
+        distinct signatures, not raw appends. Counting re-runs would let DSR
+        drift every time the pipeline is run, breaking reproducibility AND
+        silently inflating the selection-bias hurdle.
+        """
+        latest: dict[str, dict[str, Any]] = {}
+        for r in self.load():
+            sig = r.get("signature")
+            if sig is not None:
+                latest[sig] = r  # later rows overwrite -> keep most recent
+        return latest
+
     def n_unique_signatures(self) -> int:
-        return len({r["signature"] for r in self.load()})
+        return len(self._latest_by_signature())
 
     def deflation_n_trials(self) -> int:
-        """Trial count fed to DSR. Defaults to total trials; expose so callers
-        can substitute an effective count only if explicitly justified."""
-        return max(self.n_trials, 1)
+        """Trial count fed to DSR -- the number of DISTINCT configs searched
+        (deduped by signature), never the raw append count. This keeps the DSR
+        deterministic across repeated runs."""
+        return max(self.n_unique_signatures(), 1)
 
     def trial_sharpes(self) -> list[float]:
-        """Sharpe of every recorded trial -- the selection-bias distribution the
-        DSR deflates against (variance across trials)."""
+        """Sharpe of every DISTINCT trial (deduped by signature, latest write) --
+        the selection-bias distribution the DSR deflates against (variance across
+        trials). Deduping matches :meth:`deflation_n_trials`."""
         out = []
-        for r in self.load():
+        for r in self._latest_by_signature().values():
             try:
                 out.append(float(r.get("metrics", {}).get("sharpe", 0.0)))
             except (TypeError, ValueError):
