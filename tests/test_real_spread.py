@@ -40,13 +40,23 @@ def test_real_spread_feeds_bid_ask_half_each_side():
     assert bid < mid < ask
 
 
-@pytest.mark.parametrize("bad", [None, -5.0, float("nan")])
+@pytest.mark.parametrize("bad", [None, -5.0, float("nan"), 0.0])
 def test_degenerate_real_spread_falls_back_to_base(bad):
     cm = _cm()
     ts = pd.Timestamp("2023-06-01 13:00", tz="UTC")
     got = cm.effective_spread("XAUUSD", ts, is_news_window=False, real_spread_points=bad)
     base = cm.effective_spread("XAUUSD", ts, is_news_window=False)
-    assert got == pytest.approx(base)   # bad/missing override -> assumption used
+    assert got == pytest.approx(base)   # bad/missing/zero override -> assumption used
+
+
+def test_zero_spread_is_missing_not_free():
+    # spread == 0 is a DATA GAP (backfilled 2018-2020 history), not a real zero
+    # crossing -> it must cost the base-spread assumption, never trade for free.
+    cm = _cm()
+    ts = pd.Timestamp("2019-06-01 13:00", tz="UTC")
+    got = cm.effective_spread("XAUUSD", ts, is_news_window=False, real_spread_points=0.0)
+    base = cm.effective_spread("XAUUSD", ts, is_news_window=False)
+    assert got == pytest.approx(base) and got > 0.0
 
 
 def test_csv_loader_carries_optional_spread_column(tmp_path):

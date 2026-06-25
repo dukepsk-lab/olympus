@@ -56,14 +56,21 @@ class CostModel:
         """Spread in POINTS for ``symbol`` at ``ts``.
 
         If ``real_spread_points`` is supplied (the actual per-bar spread from the
-        broker feed) and is finite & positive, it is used DIRECTLY -- a measured
-        spread already reflects whatever session/news widening truly occurred, so
-        the synthetic multipliers are NOT applied on top. Otherwise we fall back
-        to ``base_spread_points`` widened by the session & news multipliers.
+        broker feed) and is finite & STRICTLY POSITIVE, it is used DIRECTLY -- a
+        measured spread already reflects whatever session/news widening truly
+        occurred, so the synthetic multipliers are NOT applied on top. Otherwise
+        (missing/NaN/<=0) we fall back to ``base_spread_points`` widened by the
+        session & news multipliers.
+
+        ``spread == 0`` is treated as MISSING, not a free crossing: a real
+        tradable instrument never has a zero spread, so a 0 in the feed means the
+        broker did not ship a per-bar spread for that bar (e.g. the backfilled
+        2018-2020 history). Charging the base-spread assumption there keeps every
+        bar net-of-cost instead of letting a data gap become a free lunch.
         """
         if real_spread_points is not None:
             rsp = float(real_spread_points)
-            if rsp == rsp and rsp >= 0:  # finite (NaN != NaN) and non-negative
+            if rsp == rsp and rsp > 0:  # finite (NaN != NaN) and strictly positive
                 return rsp
         spec = self._spec(symbol)
         spread = spec.base_spread_points

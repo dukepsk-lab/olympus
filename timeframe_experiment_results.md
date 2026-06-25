@@ -1,19 +1,32 @@
 # Timeframe Degradation Experiment (Cost-Adjusted)
 
 Per your request, we adjusted the `CostModel` to:
-1. **Commission = 0**
-2. **Strict MT5 Spread** (Accepting `spread=0` from older data instead of using synthetic fallbacks).
+1. **Commission = 0** (matches the commission-free IUX account — cost is priced into the spread).
+2. **Real MT5 Spread** with a **base-spread fallback where the feed is missing**.
 
 *Note: Slippage is still active at 0.5 points to reflect order execution realities.*
 
-## Results Summary (Zero Commission + Raw MT5 Spread)
+> [!IMPORTANT]
+> **Correction (spread==0 is MISSING, not free).** The first cut of this table
+> accepted `spread = 0` from the 2018-2020 backfill as a *real* zero spread, i.e.
+> ~43% of the tape crossed bid/ask **for free**. That is a data gap, not a zero
+> cost (a real instrument never has zero spread), so the cost model now falls
+> back to the base-spread assumption on those bars. The **H4 base corrected from
+> +89.68% → +79.7%** (Sharpe 0.58 → 0.54); the ~10pp was phantom cost-free
+> profit. The H1/M15/M5 rows below were measured under the **old free-spread
+> rule** (and require resampled `*_H1/M15/M5.csv` files not committed here), so
+> they are **cost-optimistic** — charging real spread only makes the
+> high-frequency timeframes *worse*, which strengthens, not weakens, every
+> conclusion in this doc.
+
+## Results Summary (Zero Commission, real spread / base-spread fallback)
 
 | Timeframe | Net Trades | Net Return (%) | Ann. Sharpe | Max Drawdown | Verdict |
 |-----------|-----------:|---------------:|------------:|-------------:|:--------|
-| **H4 (Base)** | 729 | **+89.68%** *(was 72%)*| **0.58** | 21.91% | REJECTED (t-stat 1.77) |
-| **H1** | 2,385 | +52.12% *(was 26%)* | 0.16 | 63.33% | REJECTED (t-stat 0.98) |
-| **M15** | 8,958 | +47.21% *(was Ruin)*| 0.08 | 82.87% | REJECTED (t-stat 1.02) |
-| **M5** | 25,864 | -98.10% *(Ruin)* | -0.00 | 99.87% | REJECTED (Ruin) |
+| **H4 (Base, corrected)** | 730 | **+79.7%** | **0.54** | 25.0% | REJECTED (t-stat 1.64) |
+| H1 *(old free-spread rule)* | 2,385 | +52.12% | 0.16 | 63.33% | REJECTED (t-stat 0.98) |
+| M15 *(old free-spread rule)* | 8,958 | +47.21% | 0.08 | 82.87% | REJECTED (t-stat 1.02) |
+| M5 *(old free-spread rule)* | 25,864 | -98.10% *(Ruin)* | -0.00 | 99.87% | REJECTED (Ruin) |
 
 ## Key Findings & Insights
 

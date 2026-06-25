@@ -1,53 +1,56 @@
 # STATUS
 
 **Last updated:** 2026-06-25
-**Data source:** REAL — IUX Markets demo (H4, 2021-11-29 → 2026-06-25, ~6.6k bars/symbol)
+**Data source:** REAL — IUX Markets demo (H4, **2018-01-02 → 2026-06-25, ~13.5k bars/symbol**)
 **State:** Validation engine complete; validated end-to-end on live broker tape. No config yet **PROMOTED** — by design (skeptical gate).
 
 > Verdict vocabulary is **PROMOTED / REJECTED** with evidence. Nothing here guarantees profit. All metrics are **net of spread + commission + slippage**; fills on **bid/ask only** (no mid).
 
-> **Cost model (IUX, updated 2026-06-25):** commission **$7/lot round-turn** ($3.5/side, charged on entry AND exit) on every symbol; **swap = 0** (IUX swap-free, not modelled); **spread** uses a real per-bar `spread` column when the feed provides one, else the base-spread assumption. ⚠️ The committed CSVs have **no `spread` column yet** (the older `fetch_mt5` dropped it) — a one-time MT5 re-fetch is needed to populate real spread; until then the base-spread fallback is in effect. `net return` is **total (cumulative)**; the report now also prints **annualised (CAGR)**.
+> **Cost model (IUX commission-free account, updated 2026-06-25):** commission **= 0** (the traded account prices cost into the spread, not a per-lot fee); **swap = 0** (IUX swap-free, not modelled); **spread** uses the real per-bar `spread` column the feed now carries. ⚠️ **A `spread == 0` is treated as MISSING, not a free crossing** — the backfilled 2018-2020 history shipped without per-bar spread (~43% of the tape), so those bars are charged the **base-spread assumption** (`base_spread × session/news`) rather than trading for free. A real instrument never has a zero spread, so a 0 in the feed is a data gap, and a data gap must not become a free lunch. (Charging real spread there cut the focal headline +89.7% → **+79.7%** — the ~10pp gap was phantom cost-free profit.) `net return` is **total (cumulative)**; the report also prints **annualised (CAGR)**.
 
 ---
 
 ## Current results (real IUX tape, net of cost)
 
-### Focal symbol — XAUUSD trend
+### Focal symbol — XAUUSD trend (full 2018-2026 tape, net of cost)
 | metric | value |
 |---|---|
-| Sharpe (ann.) | **+0.72** |
-| Net return (total) | **+40.8%** |
-| Annualised return (CAGR) | **+8.95%** |
-| Max drawdown | 18.7% |
-| Win rate | 27.9% |
-| Profit factor | 1.19 |
-| Expectancy | +0.149 R |
-| Trades | 319 |
+| Sharpe (ann.) | **+0.54** |
+| Net return (total) | **+79.7%** |
+| Annualised return (CAGR) | **+6.5%** |
+| Max drawdown | 25.0% |
+| Win rate | 26.0% |
+| Profit factor | 1.16 |
+| Expectancy | +0.067 R |
+| Trades | 730 |
 | **Verdict** | **REJECTED** |
 
-Failed checks: DSR 0.923 < 0.95 · t-stat 1.42 < 3.0 · PBO 0.263 > 0.20 · CPCV+ 62% < 70% · profitable in 2/4 regimes. Edge concentrated in the gold bull regime (Sharpe 0.94). **Real edge, correct shape, not yet statistically conclusive for one symbol.**
+Failed checks: DSR 0.9498 < 0.95 (razor-thin) · t-stat 1.64 < 3.0 · PBO 0.336 > 0.20 · median Calmar 0.273 < 0.30. **Now passes** regime breadth (**3/4** profitable: covid_shock, fed_hiking, rally_2023-25) and CPCV+ (**71%** ≥ 70%) — both improved once the 2018-2020 history filled the previously-empty covid/fed buckets. **Real edge, correct convex shape, the longer tape strengthened it (2/4→3/4 regimes), but it is still not statistically conclusive for one symbol** — the binding rejections are now t-stat and PBO, not breadth.
 
-### Universe — single-symbol trend (net total return, $7 RT commission)
-| symbol | net return | verdict |
-|---|---|---|
-| XAUUSD | +40.8% | REJECTED |
-| USDJPY | +45.4% | REJECTED |
-| BTCUSD | +47.8% | REJECTED |
-| US30 | +4.4% | REJECTED |
-| EURUSD | -10.8% | REJECTED |
-| GBPUSD | -19.1% | REJECTED |
+### Universe — single-symbol trend (full tape, commission-free account, net of cost)
+| symbol | net return | CAGR | Sharpe | trades | regimes+ | verdict |
+|---|---:|---:|---:|---:|:--:|---|
+| BTCUSD | +185.8% | +8.7% | +0.54 | 938 | 3/4 | REJECTED |
+| XAUUSD | +79.7% | +6.5% | +0.54 | 730 | 3/4 | REJECTED |
+| USDJPY | −6.1% | −0.7% | +0.02 | 699 | 2/4 | REJECTED |
+| US30 | −23.3% | −3.5% | −0.19 | 554 | 2/4 | REJECTED |
+| EURUSD | −24.9% | −3.0% | −0.17 | 651 | 2/4 | REJECTED |
+| GBPUSD | −29.3% | −3.7% | −0.22 | 698 | 2/4 | REJECTED |
 
-### Diversified basket (equal-fraction)
+Only **XAUUSD and BTCUSD** carry a positive trend edge on the full tape — both with the textbook convex signature (win rate 26%/31%, PF 1.16/1.30). Note USDJPY, which looked positive (+45%) on the shorter 2021-only tape, **flipped to ~flat (−6%)** once 2018-2020 was added — a clean reminder that short samples flatter non-edges. The FX pairs and US30 have **no** trend edge net of cost.
+
+### Diversified basket (equal-fraction, full tape)
 | metric | value |
 |---|---|
-| Sharpe (ann.) | +0.54 |
-| Net return (total) | +18.1% |
-| Annualised return (CAGR) | +3.3% |
-| Max drawdown | **8.2%** |
-| CPCV paths positive | **80%** |
+| Sharpe (ann.) | +0.31 |
+| Net return (total) | +30.3% |
+| Annualised return (CAGR) | +2.1% |
+| Max drawdown | 19.9% |
+| CPCV paths positive | 69% |
+| PBO | 0.274 |
 | **Verdict** | **REJECTED** |
 
-Failed checks: PBO 0.672 > hard-reject 0.5 · DSR (deflated by the 6 universe trials) · t-stat < 3.0. Diversification works (8.2% max DD) but FX pairs dragged returns and path-to-path variance flags overfit risk. (Inverse-vol weighting was tested as a fix and made it **worse** — see "Portfolio weighting" below.)
+Failed checks: PBO 0.274 > 0.20 · DSR (deflated by the 6 universe trials) · t-stat < 3.0 · CPCV+ 69% < 70%. The equal-weight basket is dragged by the four non-trending symbols (EUR/GBP/US30/JPY) that the broad-diversification thesis still includes; max DD 19.9%. (Inverse-vol weighting and gate-aware selection were both tested as fixes and made it **worse** — see below.)
 
 ---
 
