@@ -45,7 +45,9 @@ def build_text_report(symbol: str, strategy: str, result: BacktestResult,
 
     lines.append("  -- Net trade metrics (after spread + commission + slippage) --")
     lines.append(_line("net trades", perf.n_trades, "{:>14,d}"))
-    lines.append(_line("net return (%)", perf.net_return * 100, "{:>14,.2f}"))
+    lines.append(_line("net return (%) [total]", perf.net_return * 100, "{:>14,.2f}"))
+    lines.append(_line("annualised return (%) [CAGR]", perf.annualised_return * 100,
+                       "{:>14,.2f}"))
     lines.append(_line("Sharpe (ann.)", perf.sharpe))
     lines.append(_line("Sortino (ann.)", perf.sortino))
     lines.append(_line("Calmar", perf.calmar))

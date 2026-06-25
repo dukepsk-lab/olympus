@@ -75,7 +75,7 @@ python scripts/make_synthetic.py --config config/default.yaml --out data/ohlc
 python scripts/fetch_mt5.py --config config/default.yaml --out data/ohlc
 python scripts/run_research.py --config config/csv.yaml --symbol XAUUSD   # real tape
 
-pytest                         # 50 tests incl. CPCV no-leakage & no-mid-fill
+pytest                         # 57 tests incl. CPCV no-leakage & no-mid-fill
 ```
 
 Swapping `data.source` between `synthetic | csv | mt5` in the YAML requires **no
@@ -87,7 +87,7 @@ override). `MetaTrader5` is never exercised by tests.
 
 ### Done & verified
 - **Full pipeline shipped**, scaffold → `run_research.py` (17 modules, config-driven).
-- **50 tests green**, including the two critical guards: CPCV **no-leakage**
+- **57 tests green**, including the two critical guards: CPCV **no-leakage**
   (off-by-one + exact-boundary + embargo monotonicity) and **no-mid-fill**
   (`fill_price` never equals mid; spread straddles mid).
 - **End-to-end runs** on synthetic **and** CSV — swapping `data.source` needs

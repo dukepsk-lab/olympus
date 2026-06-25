@@ -105,7 +105,11 @@ class DataSource(ABC):
             df.index = df.index.tz_localize("UTC")
         else:
             df.index = df.index.tz_convert("UTC")
-        return df[list(OHLC_COLS)].astype(float)
+        # Carry a per-bar real `spread` (in POINTS) through when the feed provides
+        # one (e.g. MT5's spread field) -- the cost model uses it instead of the
+        # base-spread assumption. OHLCV remain required; spread is optional.
+        cols = list(OHLC_COLS) + (["spread"] if "spread" in df.columns else [])
+        return df[cols].astype(float)
 
     def load_d1(self, symbol: str, start: str | None = None,
                 end: str | None = None) -> pd.DataFrame:
@@ -326,7 +330,8 @@ class CsvSource(DataSource):
             df = df[df.index >= pd.Timestamp(start, tz="UTC")]
         if end:
             df = df[df.index <= pd.Timestamp(end, tz="UTC")]
-        return df[list(OHLC_COLS)]
+        cols = list(OHLC_COLS) + (["spread"] if "spread" in df.columns else [])
+        return df[cols]
 
 
 # ----------------------------------------------------------------------------

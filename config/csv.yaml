@@ -64,14 +64,14 @@ symbols:
     point: 0.1
     contract_size: 1.0       # $1 per index point per lot
     base_spread_points: 10.0
-    commission_per_lot: 2.5
+    commission_per_lot: 3.5  # IUX $7/lot round-turn (per-side x2)
     slippage_points: 2.0
   BTCUSD:
     digits: 2
     point: 0.01
     contract_size: 1.0       # $1 per $1 move
     base_spread_points: 80.0
-    commission_per_lot: 2.5
+    commission_per_lot: 3.5  # IUX $7/lot round-turn (per-side x2)
     slippage_points: 20.0
 
 # ----------------------------------------------------------------------------

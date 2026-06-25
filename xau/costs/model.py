@@ -51,8 +51,20 @@ class CostModel:
             raise KeyError(f"CostModel: unknown symbol '{symbol}'") from exc
 
     def effective_spread(self, symbol: str, ts: pd.Timestamp,
-                         is_news_window: bool) -> float:
-        """Spread in POINTS for ``symbol`` at ``ts``, widened by session & news."""
+                         is_news_window: bool,
+                         real_spread_points: float | None = None) -> float:
+        """Spread in POINTS for ``symbol`` at ``ts``.
+
+        If ``real_spread_points`` is supplied (the actual per-bar spread from the
+        broker feed) and is finite & positive, it is used DIRECTLY -- a measured
+        spread already reflects whatever session/news widening truly occurred, so
+        the synthetic multipliers are NOT applied on top. Otherwise we fall back
+        to ``base_spread_points`` widened by the session & news multipliers.
+        """
+        if real_spread_points is not None:
+            rsp = float(real_spread_points)
+            if rsp == rsp and rsp > 0:  # finite (NaN != NaN) and positive
+                return rsp
         spec = self._spec(symbol)
         spread = spec.base_spread_points
         hour = ts.hour if ts.tzinfo else ts.hour
@@ -63,20 +75,25 @@ class CostModel:
         return float(spread)
 
     def spread_in_price(self, symbol: str, ts: pd.Timestamp,
-                        is_news_window: bool) -> float:
+                        is_news_window: bool,
+                        real_spread_points: float | None = None) -> float:
         """Spread expressed in PRICE units (= effective_spread_points * point)."""
         spec = self._spec(symbol)
-        return self.effective_spread(symbol, ts, is_news_window) * spec.point
+        return self.effective_spread(symbol, ts, is_news_window,
+                                     real_spread_points) * spec.point
 
     def bid_ask(self, mid: float, symbol: str, ts: pd.Timestamp,
-                is_news_window: bool) -> tuple[float, float]:
+                is_news_window: bool,
+                real_spread_points: float | None = None) -> tuple[float, float]:
         """Split a mid price into (bid, ask) using the effective half-spread.
 
         bid < mid < ask always, with bid != ask whenever spread > 0 (the only
         way they coincide is a zero spread, which no real symbol has).
+        ``real_spread_points`` overrides the base assumption when provided.
         """
         spec = self._spec(symbol)
-        half = self.effective_spread(symbol, ts, is_news_window) * spec.point / 2.0
+        half = self.effective_spread(symbol, ts, is_news_window,
+                                     real_spread_points) * spec.point / 2.0
         return mid - half, mid + half
 
     def commission_dollars(self, symbol: str, lots: float, sides: int = 1) -> float:

@@ -29,6 +29,11 @@ universe:
 #  Per-symbol contracts + costs.  point_value ($) = point * contract_size.
 #  These are realistic retail MT5 values, used as DEFAULTS only -- always run
 #  the pipeline against your own broker's tick/spread tape before risking capital.
+#  COMMISSION: `commission_per_lot` is charged PER SIDE (entry AND exit), so the
+#  round-turn cost = 2 x commission_per_lot. IUX ~ $7/lot round-turn -> 3.5/side.
+#  SPREAD: base_spread_points is a FALLBACK; if a CSV carries a per-bar `spread`
+#  column (points), the cost model uses that REAL spread instead (see fetch_mt5).
+#  SWAP: not modelled (zero) -- matches IUX swap-free on these instruments.
 # ----------------------------------------------------------------------------
 symbols:
   XAUUSD:
@@ -64,14 +69,14 @@ symbols:
     point: 0.1
     contract_size: 1.0       # $1 per index point per lot
     base_spread_points: 10.0
-    commission_per_lot: 2.5
+    commission_per_lot: 3.5  # IUX $7/lot round-turn (per-side x2)
     slippage_points: 2.0
   BTCUSD:
     digits: 2
     point: 0.01
     contract_size: 1.0       # $1 per $1 move
     base_spread_points: 80.0
-    commission_per_lot: 2.5
+    commission_per_lot: 3.5  # IUX $7/lot round-turn (per-side x2)
     slippage_points: 20.0
 
 # ----------------------------------------------------------------------------

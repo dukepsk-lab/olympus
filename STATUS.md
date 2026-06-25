@@ -6,6 +6,8 @@
 
 > Verdict vocabulary is **PROMOTED / REJECTED** with evidence. Nothing here guarantees profit. All metrics are **net of spread + commission + slippage**; fills on **bid/ask only** (no mid).
 
+> **Cost model (IUX, updated 2026-06-25):** commission **$7/lot round-turn** ($3.5/side, charged on entry AND exit) on every symbol; **swap = 0** (IUX swap-free, not modelled); **spread** uses a real per-bar `spread` column when the feed provides one, else the base-spread assumption. ⚠️ The committed CSVs have **no `spread` column yet** (the older `fetch_mt5` dropped it) — a one-time MT5 re-fetch is needed to populate real spread; until then the base-spread fallback is in effect. `net return` is **total (cumulative)**; the report now also prints **annualised (CAGR)**.
+
 ---
 
 ## Current results (real IUX tape, net of cost)
@@ -13,8 +15,9 @@
 ### Focal symbol — XAUUSD trend
 | metric | value |
 |---|---|
-| Sharpe (ann.) | **+0.71** |
-| Net return | **+40.4%** |
+| Sharpe (ann.) | **+0.72** |
+| Net return (total) | **+40.8%** |
+| Annualised return (CAGR) | **+8.95%** |
 | Max drawdown | 18.7% |
 | Win rate | 27.9% |
 | Profit factor | 1.19 |
@@ -24,33 +27,33 @@
 
 Failed checks: DSR 0.923 < 0.95 · t-stat 1.42 < 3.0 · PBO 0.263 > 0.20 · CPCV+ 62% < 70% · profitable in 2/4 regimes. Edge concentrated in the gold bull regime (Sharpe 0.94). **Real edge, correct shape, not yet statistically conclusive for one symbol.**
 
-### Universe — single-symbol trend
+### Universe — single-symbol trend (net total return, $7 RT commission)
 | symbol | net return | verdict |
 |---|---|---|
-| XAUUSD | +40.4% | REJECTED |
-| USDJPY | +45.1% | REJECTED |
-| BTCUSD | +48.8% | REJECTED |
-| US30 | +6.3% | REJECTED |
-| EURUSD | -11.2% | REJECTED |
-| GBPUSD | -19.4% | REJECTED |
+| XAUUSD | +40.8% | REJECTED |
+| USDJPY | +45.4% | REJECTED |
+| BTCUSD | +47.8% | REJECTED |
+| US30 | +4.4% | REJECTED |
+| EURUSD | -10.8% | REJECTED |
+| GBPUSD | -19.1% | REJECTED |
 
 ### Diversified basket (equal-fraction)
 | metric | value |
 |---|---|
-| Sharpe (ann.) | +0.55 |
-| Net return | +18.4% |
-| Max drawdown | **8.1%** |
+| Sharpe (ann.) | +0.54 |
+| Net return (total) | +18.1% |
+| Annualised return (CAGR) | +3.3% |
+| Max drawdown | **8.2%** |
 | CPCV paths positive | **80%** |
-| Median Calmar (paths) | 0.86 |
 | **Verdict** | **REJECTED** |
 
-Failed checks: PBO 0.673 > hard-reject 0.5 · DSR 0.447 (deflated by the 6 universe trials) · t-stat 1.25 < 3.0. Diversification works (8.1% max DD) but FX pairs dragged returns and path-to-path variance flags overfit risk. (Inverse-vol weighting was tested as a fix and made it **worse** — see "Portfolio weighting" below.)
+Failed checks: PBO 0.672 > hard-reject 0.5 · DSR (deflated by the 6 universe trials) · t-stat < 3.0. Diversification works (8.2% max DD) but FX pairs dragged returns and path-to-path variance flags overfit risk. (Inverse-vol weighting was tested as a fix and made it **worse** — see "Portfolio weighting" below.)
 
 ---
 
 ## Done
 - Full 17-module pipeline (scaffold → `run_research.py`), config-driven.
-- **50 tests green** incl. CPCV no-leakage, no-mid-fill, ledger-dedup, sweep, weighting & selection guards.
+- **57 tests green** incl. CPCV no-leakage, no-mid-fill, ledger-dedup, sweep, weighting, selection & real-spread guards.
 - `SyntheticSource` / `CsvSource` / `MT5Source` — swap needs zero code change.
 - `scripts/fetch_mt5.py` — live MT5 fetch; pulled full universe from IUX demo.
 - Reproducible (deterministic seed; `zlib.crc32` stable hash).
