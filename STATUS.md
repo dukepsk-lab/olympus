@@ -50,12 +50,13 @@ Failed checks: PBO 0.673 > hard-reject 0.5 · DSR 0.447 (deflated by the 6 unive
 
 ## Done
 - Full 17-module pipeline (scaffold → `run_research.py`), config-driven.
-- **33 tests green** incl. CPCV no-leakage & no-mid-fill guards.
+- **37 tests green** incl. CPCV no-leakage, no-mid-fill & ledger-dedup guards.
 - `SyntheticSource` / `CsvSource` / `MT5Source` — swap needs zero code change.
 - `scripts/fetch_mt5.py` — live MT5 fetch; pulled full universe from IUX demo.
 - Reproducible (deterministic seed; `zlib.crc32` stable hash).
 - Validated on real broker tape (IUX) — XAUUSD trend confirmed profitable net-of-cost.
 - Bugs caught & fixed: `hash()` non-determinism; `point_value` vs `contract_size` (100× gold error); `max_drawdown` sign; DSR per-obs vs annualised units.
+- **Ledger dedup hardening:** DSR `n_trials` (and the trial-Sharpe variance) now count **distinct config signatures**, not raw appends — re-running the same config no longer drifts the DSR. The XAUUSD-trend DSR 0.924 above reproduces exactly on a clean ledger. (`xau/validation/ledger.py`, `tests/test_ledger_dedup.py`.)
 
 ## In progress
 - (none active)
@@ -66,7 +67,7 @@ Failed checks: PBO 0.673 > hard-reject 0.5 · DSR 0.447 (deflated by the 6 unive
 3. **Gate-threshold calibration** — XAUUSD sits at DSR 0.92, close; tune only with logged rationale.
 4. **Robustness sweep** — vary `f`, barrier mults, lookback → `TrialLedger` → re-check DSR/PBO stability.
 5. **Portfolio weighting** — vol-target / inverse-vol (FX pairs dragged the basket).
-6. **Hygiene** — `ruff` lint + GitHub Actions CI.
+6. **Hygiene** — `ruff` lint (GitHub Actions CI live: pytest + synthetic smoke-test).
 
 ## Out of scope (by design)
 - Live order routing (research-only).

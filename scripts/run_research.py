@@ -199,7 +199,8 @@ def main() -> int:
                              title=f"{args.symbol} {strat}")
             print()
 
-    print(f"Done. Reports/plots in {out_dir}/ . Ledger trials: {ledger.n_trials}.")
+    print(f"Done. Reports/plots in {out_dir}/ . Distinct trials: "
+          f"{ledger.n_unique_signatures()} (rows logged: {ledger.n_trials}).")
     print("Reminder: nothing here guarantees profit. PROMOTED/REJECTED only.")
     return 0
 

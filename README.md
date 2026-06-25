@@ -64,7 +64,7 @@ python scripts/make_synthetic.py --config config/default.yaml --out data/ohlc
 python scripts/fetch_mt5.py --config config/default.yaml --out data/ohlc
 python scripts/run_research.py --config config/csv.yaml --symbol XAUUSD   # real tape
 
-pytest                         # 33 tests incl. CPCV no-leakage & no-mid-fill
+pytest                         # 37 tests incl. CPCV no-leakage & no-mid-fill
 ```
 
 Swapping `data.source` between `synthetic | csv | mt5` in the YAML requires **no
@@ -76,7 +76,7 @@ override). `MetaTrader5` is never exercised by tests.
 
 ### Done & verified
 - **Full pipeline shipped**, scaffold → `run_research.py` (17 modules, config-driven).
-- **33 tests green**, including the two critical guards: CPCV **no-leakage**
+- **37 tests green**, including the two critical guards: CPCV **no-leakage**
   (off-by-one + exact-boundary + embargo monotonicity) and **no-mid-fill**
   (`fill_price` never equals mid; spread straddles mid).
 - **End-to-end runs** on synthetic **and** CSV — swapping `data.source` needs
@@ -114,7 +114,8 @@ override). `MetaTrader5` is never exercised by tests.
 5. **Portfolio weighting.** Basket is currently equal-fraction; consider
    vol-target / inverse-vol weighting (FX pairs were negative on this tape and
    dragged the basket — weighting could help).
-6. **Hygiene:** `ruff` lint pass + GitHub Actions CI (test target exists).
+6. **Hygiene:** `ruff` lint pass (GitHub Actions CI now runs pytest + a
+   synthetic smoke-test on every push/PR — `.github/workflows/ci.yml`).
 
 ### Out of scope / explicitly deferred
 - Live execution / order routing (research-only by design).
