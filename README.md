@@ -115,8 +115,8 @@ override). `MetaTrader5` is never exercised by tests.
 1. **Extend the real tape.** IUX history starts 2021-11; add a second feed for
    2018-2020 (incl. the COVID shock regime bucket, currently empty) to give the
    gate more regime coverage and statistical power.
-2. **D1 slow-trend overlay.** The research says the TSMOM edge is strongest at
-   slower frequencies; add a `D1` signal merge to the `H4` base (config hooks
+2. ~~**D1 slow-trend overlay.**~~ **DONE** — The research says the TSMOM edge is strongest at
+   slower frequencies; added a `D1` signal merge to the `H4` base (config hooks
    already exist).
 3. **Gate-threshold calibration on real tape.** XAUUSD now sits at DSR 0.92 —
    close. Tune PBO/DSR cutoffs only with a logged rationale, never auto-retune.

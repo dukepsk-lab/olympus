@@ -43,6 +43,7 @@ def main() -> None:
     ap.add_argument("--login", type=int, default=None)
     ap.add_argument("--password", default=None)
     ap.add_argument("--server", default=None)
+    ap.add_argument("--suffix", default="", help="Broker symbol suffix (e.g. '.')")
     args = ap.parse_args()
 
     import MetaTrader5 as mt5  # lazy
@@ -75,7 +76,8 @@ def main() -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
 
     n_ok = 0
-    for sym in universe:
+    for base_sym in universe:
+        sym = base_sym + args.suffix
         info = mt5.symbol_info(sym)
         if info is None:
             print(f"  SKIP {sym}: symbol not found on this server")
@@ -100,7 +102,7 @@ def main() -> None:
         keep = list(OHLC_COLS) + (["spread"] if "spread" in df.columns else [])
         df = df[keep]
         df.index.name = "time"
-        path = out_dir / f"{sym}_{tf}.csv"
+        path = out_dir / f"{base_sym}_{tf}.csv"
         df.to_csv(path, index_label="time")
         print(f"  wrote {path}  ({len(df)} bars)  "
               f"{df.index[0]} -> {df.index[-1]}  close {df.close.min():.5f}..{df.close.max():.5f}")

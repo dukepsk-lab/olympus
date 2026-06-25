@@ -13,9 +13,9 @@ data:
   timeframe: H4               # signal/label timeframe
   d1_overlay: true            # optional slower D1 trend filter
   csv_dir: data/ohlc          # used only when source == csv
-  start: "2020-01-01"
-  end: "2025-12-31"
-  bars: 6000                  # synthetic length per symbol if start/end unused
+  start: "2018-01-01"
+  end: "2026-06-24"
+  bars: 20000                 # synthetic length per symbol if start/end unused
 
 universe:
   - XAUUSD
