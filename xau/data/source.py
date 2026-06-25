@@ -105,7 +105,11 @@ class DataSource(ABC):
             df.index = df.index.tz_localize("UTC")
         else:
             df.index = df.index.tz_convert("UTC")
-        return df[list(OHLC_COLS)].astype(float)
+        # Carry a per-bar real `spread` (in POINTS) through when the feed provides
+        # one (e.g. MT5's spread field) -- the cost model uses it instead of the
+        # base-spread assumption. OHLCV remain required; spread is optional.
+        cols = list(OHLC_COLS) + (["spread"] if "spread" in df.columns else [])
+        return df[cols].astype(float)
 
     def load_d1(self, symbol: str, start: str | None = None,
                 end: str | None = None) -> pd.DataFrame:
@@ -197,11 +201,11 @@ class SyntheticSource(DataSource):
 
     def _load_mid(self, symbol: str, timeframe: str,
                   start: str | None, end: str | None) -> pd.DataFrame:
-        spec = self._spec(symbol)
         base = SYNTH_BASE.get(symbol, dict(price=100.0, ann_vol=0.20, drift=0.0))
         price0 = float(base["price"])
         ann_vol = float(base["ann_vol"])
-        drift_ann = float(base["drift"])
+        # NB: base["drift"] is intentionally NOT applied as a constant -- the trend
+        # drift is the AR(1) `mu` process below (regimes only scale volatility).
 
         n_bars, index = self._bar_index(timeframe, start, end)
         regimes = self._shared_regimes(n_bars)
@@ -326,7 +330,8 @@ class CsvSource(DataSource):
             df = df[df.index >= pd.Timestamp(start, tz="UTC")]
         if end:
             df = df[df.index <= pd.Timestamp(end, tz="UTC")]
-        return df[list(OHLC_COLS)]
+        cols = list(OHLC_COLS) + (["spread"] if "spread" in df.columns else [])
+        return df[cols]
 
 
 # ----------------------------------------------------------------------------

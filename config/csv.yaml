@@ -64,14 +64,14 @@ symbols:
     point: 0.1
     contract_size: 1.0       # $1 per index point per lot
     base_spread_points: 10.0
-    commission_per_lot: 2.5
+    commission_per_lot: 3.5  # IUX $7/lot round-turn (per-side x2)
     slippage_points: 2.0
   BTCUSD:
     digits: 2
     point: 0.01
     contract_size: 1.0       # $1 per $1 move
     base_spread_points: 80.0
-    commission_per_lot: 2.5
+    commission_per_lot: 3.5  # IUX $7/lot round-turn (per-side x2)
     slippage_points: 20.0
 
 # ----------------------------------------------------------------------------
@@ -99,8 +99,7 @@ features:
   trend:
     lookbacks: [20, 60, 120]   # H4 bars; default toward SLOWER end (research §1,§5)
     d1_lookbacks: [20, 50]     # slow overlay, only-when-aligned
-    vol_target_annual: 0.15    # volatility-scaling target
-    vol_halflife: 20
+    vol_halflife: 20           # vol-targeting is structural (stop_distance), not a scalar
   breakout:
     opening_range_bars: 3      # min bars needed to define the range session
     min_range_atr_multiple: 0.5

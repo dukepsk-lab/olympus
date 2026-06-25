@@ -66,7 +66,6 @@ def tsmom_signal(df: pd.DataFrame, cfg: TrendConfig, labeling: LabelingConfig,
     close = df["close"]
     vol = ewma_vol(close, halflife=cfg.vol_halflife)
     lookbacks = tuple(cfg.lookbacks)
-    n_lb = len(lookbacks)
     # weight slower lookbacks higher (research: lean to the slow end)
     weights = np.array([1.0 / np.sqrt(L) for L in lookbacks])
     weights = weights / weights.sum()

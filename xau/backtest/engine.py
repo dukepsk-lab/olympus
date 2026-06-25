@@ -20,7 +20,7 @@ one symbol at a time.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 import numpy as np
 import pandas as pd
@@ -70,9 +70,10 @@ def run_backtest(df: pd.DataFrame, signal: pd.DataFrame, config: Config,
     max_hold = config.labeling.max_holding_bars
     from ..mm.money import position_size, WithdrawalPolicy
     wpolicy = WithdrawalPolicy.from_config(config.money)
-    # signal-level barrier overrides (trend lets winners run; see features/trend)
+    # signal-level profit-take override (trend lets winners run; see features/trend).
+    # The stop side needs no override here: stop_distance already encodes sl_mult
+    # (= sl_mult * vol * price), and the engine stops off stop_distance directly.
     sig_pt = signal["pt_mult"].to_numpy(float) if "pt_mult" in signal else None
-    sig_sl = signal["sl_mult"].to_numpy(float) if "sl_mult" in signal else None
 
     start_eq = float(starting_equity if starting_equity is not None
                      else config.backtest.starting_equity)
@@ -88,6 +89,9 @@ def run_backtest(df: pd.DataFrame, signal: pd.DataFrame, config: Config,
     sig_vol = signal["vol"].to_numpy(float)
     news = (news_mask.reindex(idx).fillna(False).to_numpy(bool)
             if news_mask is not None else np.zeros(len(idx), dtype=bool))
+    # Real per-bar spread (POINTS) if the feed carries it; else None -> the cost
+    # model falls back to base_spread * session/news multipliers.
+    real_spread = df["spread"].to_numpy(float) if "spread" in df.columns else None
     n = len(idx)
 
     # per-bar accounting
@@ -114,10 +118,11 @@ def run_backtest(df: pd.DataFrame, signal: pd.DataFrame, config: Config,
 
     for t in range(n):
         ts = idx[t]
+        sp_t = real_spread[t] if real_spread is not None else None
 
         # (1) fill a pending entry at bar t OPEN (signal was decided at t-1 close)
         if not in_pos and pending_side != 0 and realized > 0:
-            bid, ask = cm.bid_ask(op[t], symbol, ts, bool(news[t]))
+            bid, ask = cm.bid_ask(op[t], symbol, ts, bool(news[t]), sp_t)
             entry_fill = fill_price(pending_side, bid, ask, slip, point)
             sd = signal["stop_distance"].iloc[t - 1] if t > 0 else np.nan
             vol_e = sig_vol[t - 1] if t > 0 else np.nan
@@ -152,24 +157,24 @@ def run_backtest(df: pd.DataFrame, signal: pd.DataFrame, config: Config,
             # stop first (pessimistic) then target then vertical
             if p_side > 0:  # long
                 if lo[t] <= p_stop:
-                    bid, ask = cm.bid_ask(p_stop, symbol, ts, bool(news[t]))
+                    bid, ask = cm.bid_ask(p_stop, symbol, ts, bool(news[t]), sp_t)
                     exit_fill = fill_price(-1, bid, ask, slip, point)
                     touched, reason = True, "stop"
                 elif hi[t] >= p_target:
-                    bid, ask = cm.bid_ask(p_target, symbol, ts, bool(news[t]))
+                    bid, ask = cm.bid_ask(p_target, symbol, ts, bool(news[t]), sp_t)
                     exit_fill = fill_price(-1, bid, ask, slip, point)
                     touched, reason = True, "target"
             else:  # short
                 if hi[t] >= p_stop:
-                    bid, ask = cm.bid_ask(p_stop, symbol, ts, bool(news[t]))
+                    bid, ask = cm.bid_ask(p_stop, symbol, ts, bool(news[t]), sp_t)
                     exit_fill = fill_price(+1, bid, ask, slip, point)
                     touched, reason = True, "stop"
                 elif lo[t] <= p_target:
-                    bid, ask = cm.bid_ask(p_target, symbol, ts, bool(news[t]))
+                    bid, ask = cm.bid_ask(p_target, symbol, ts, bool(news[t]), sp_t)
                     exit_fill = fill_price(+1, bid, ask, slip, point)
                     touched, reason = True, "target"
             if not touched and t >= p_vert_i:
-                bid, ask = cm.bid_ask(cl[t], symbol, ts, bool(news[t]))
+                bid, ask = cm.bid_ask(cl[t], symbol, ts, bool(news[t]), sp_t)
                 exit_fill = fill_price(-p_side, bid, ask, slip, point)
                 touched, reason = True, "vertical"
             if touched:

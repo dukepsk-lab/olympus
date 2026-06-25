@@ -138,6 +138,7 @@ def t_stat_mean(returns: np.ndarray) -> float:
 class Performance:
     n_trades: int = 0
     net_return: float = 0.0
+    annualised_return: float = 0.0
     sharpe: float = 0.0
     sortino: float = 0.0
     calmar: float = 0.0
@@ -156,6 +157,7 @@ class Performance:
         return {
             "n_trades": self.n_trades,
             "net_return": self.net_return,
+            "annualised_return": self.annualised_return,
             "sharpe": self.sharpe,
             "sortino": self.sortino,
             "calmar": self.calmar,
@@ -181,6 +183,7 @@ def compute_performance(bar_returns: np.ndarray | None = None,
     if bar_returns is not None and len(bar_returns):
         r = np.asarray(bar_returns, dtype=float)
         perf.net_return = float(np.prod(1.0 + r[np.isfinite(r)]) - 1.0)
+        perf.annualised_return = annualised_return(r, annual_bars)
         perf.sharpe = sharpe(r, annual_bars)
         perf.sortino = sortino(r, annual_bars)
         perf.calmar = calmar(r, annual_bars)
@@ -190,7 +193,8 @@ def compute_performance(bar_returns: np.ndarray | None = None,
         perf.t_stat = t_stat_mean(r)
         rr = r[np.isfinite(r)]
         if rr.size >= 3 and rr.std(ddof=1) > _EPS:
-            mu = rr.mean(); sd = rr.std(ddof=1)
+            mu = rr.mean()
+            sd = rr.std(ddof=1)
             perf.skew = float(((rr - mu) ** 3).mean() / sd**3)
             perf.excess_kurt = float(((rr - mu) ** 4).mean() / sd**4 - 3.0)
     if trade_pnl is not None and len(trade_pnl):

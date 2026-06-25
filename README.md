@@ -57,6 +57,17 @@ python scripts/run_research.py --config config/default.yaml --symbol XAUUSD
 # diversified trend across the whole universe (where the edge actually lives):
 python scripts/run_research.py --config config/default.yaml --symbol universe --strategies trend
 
+# robustness sweep -- is the focal edge a plateau or a lonely spike?
+python scripts/robustness_sweep.py --config config/csv.yaml --symbol XAUUSD
+
+# same basket under causal inverse-vol (risk-parity-lite) allocation:
+python scripts/run_research.py --config config/csv.yaml --symbol universe \
+    --strategies trend --weighting inverse_vol
+
+# gate-aware basket: select symbols on a causal train slice, evaluate OOS:
+python scripts/run_research.py --config config/csv.yaml --symbol universe \
+    --strategies trend --basket-mode gate_aware
+
 # write synthetic OHLC to CSV (then set data.source: csv in the config):
 python scripts/make_synthetic.py --config config/default.yaml --out data/ohlc
 
@@ -64,7 +75,7 @@ python scripts/make_synthetic.py --config config/default.yaml --out data/ohlc
 python scripts/fetch_mt5.py --config config/default.yaml --out data/ohlc
 python scripts/run_research.py --config config/csv.yaml --symbol XAUUSD   # real tape
 
-pytest                         # 37 tests incl. CPCV no-leakage & no-mid-fill
+pytest                         # 57 tests incl. CPCV no-leakage & no-mid-fill
 ```
 
 Swapping `data.source` between `synthetic | csv | mt5` in the YAML requires **no
@@ -76,7 +87,7 @@ override). `MetaTrader5` is never exercised by tests.
 
 ### Done & verified
 - **Full pipeline shipped**, scaffold → `run_research.py` (17 modules, config-driven).
-- **37 tests green**, including the two critical guards: CPCV **no-leakage**
+- **57 tests green**, including the two critical guards: CPCV **no-leakage**
   (off-by-one + exact-boundary + embargo monotonicity) and **no-mid-fill**
   (`fill_price` never equals mid; spread straddles mid).
 - **End-to-end runs** on synthetic **and** CSV — swapping `data.source` needs
@@ -111,9 +122,21 @@ override). `MetaTrader5` is never exercised by tests.
    close. Tune PBO/DSR cutoffs only with a logged rationale, never auto-retune.
 4. **Robustness sweep.** Vary `f`, barrier multipliers, lookback; append each to
    the `TrialLedger` and re-check DSR/PBO stability (no cherry-picking).
-5. **Portfolio weighting.** Basket is currently equal-fraction; consider
-   vol-target / inverse-vol weighting (FX pairs were negative on this tape and
-   dragged the basket — weighting could help).
+4b. ~~**Robustness sweep.**~~ **DONE** — `scripts/robustness_sweep.py` perturbs
+   the trend edge across `lookbacks × D1-filter` (16 distinct ledger trials).
+   On the real tape the focal edge is a **plateau** (16/16 net-Sharpe>0, median
+   +0.84, default sits in the lower half = conservative). Surfaced two dead/inert
+   config knobs (`vol_target_annual`, and `labeling.pt_sl` for trend) — see STATUS.
+5. ~~**Portfolio weighting.**~~ **DONE** — added causal inverse-vol allocation
+   (`xau/mm/portfolio.py`, `--weighting inverse_vol`). Honest negative result: it
+   UNDERperforms equal on this tape (Sharpe 0.56→0.36, PBO 0.67→0.93) because it
+   overweights the calm FX *laggards* and starves the high-vol BTC/gold
+   *diversifiers*. `equal` stays default; see STATUS.
+5b. **Gate-aware basket** (`--basket-mode gate_aware`) — **DONE.** Selects symbols
+   on a causal train slice, evaluates strictly OOS. Also a negative result:
+   trailing-Sharpe selection dropped US30/BTC, and BTC was the OOS winner — so it
+   underperformed all-symbols equal weight (+4.7% vs +13.0% OOS). Both basket
+   experiments confirm broad equal-weight diversification is the baseline to beat.
 6. **Hygiene:** `ruff` lint pass (GitHub Actions CI now runs pytest + a
    synthetic smoke-test on every push/PR — `.github/workflows/ci.yml`).
 
@@ -135,11 +158,12 @@ xau_research/
 │   ├── labeling/triple_barrier.py  # triple-barrier labels + t1 (purge span)
 │   ├── backtest/{engine,fills}.py  # event-driven bid/ask; NO mid fills
 │   ├── mm/money.py                 # sizing + withdrawal + correlated cap + f-sweep
+│   ├── mm/portfolio.py             # basket allocation: equal | causal inverse-vol
 │   ├── validation/{cpcv,dsr,pbo,walkforward,ledger}.py
 │   ├── metrics/perf.py             # Sharpe/Sortino/Calmar/maxDD/PF/win%/expectancy
 │   ├── report/build.py             # net metrics + regime table + f-sweep + plots
 │   └── gate.py                     # PromotionGate -> PROMOTED | REJECTED + reasons
-├── scripts/{run_research,make_synthetic}.py
+├── scripts/{run_research,make_synthetic,fetch_mt5,robustness_sweep}.py
 └── tests/                          # CPCV no-leakage, no-mid-fill, DSR monotonic, ...
 ```
 

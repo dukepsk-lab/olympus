@@ -6,7 +6,6 @@ import pandas as pd
 
 from xau.labeling.triple_barrier import (
     add_vertical_barrier,
-    ewma_vol,
     triple_barrier_labels,
 )
 

@@ -27,6 +27,10 @@ jobs:
           # MetaTrader5 is imported lazily and never exercised by tests, so the
           # core scientific stack is all CI needs.
           pip install -r requirements.txt
+          pip install ruff
+
+      - name: Lint (ruff)
+        run: ruff check .
 
       - name: Run test suite (CPCV no-leakage, no-mid-fill, ledger dedup, ...)
         run: pytest -q

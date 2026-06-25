@@ -93,7 +93,12 @@ def main() -> None:
         df = df.set_index("time").sort_index()
         col = "tick_volume" if "tick_volume" in df.columns else "volume"
         df = df.rename(columns={col: "volume"})
-        df = df[list(OHLC_COLS)]
+        # Keep MT5's per-bar `spread` (in POINTS) when present -- the cost model
+        # uses the REAL spread instead of the base-spread assumption. This is the
+        # "real spread that comes with the OHLC"; a re-fetch is needed once to
+        # populate it into existing CSVs (older fetches dropped this column).
+        keep = list(OHLC_COLS) + (["spread"] if "spread" in df.columns else [])
+        df = df[keep]
         df.index.name = "time"
         path = out_dir / f"{sym}_{tf}.csv"
         df.to_csv(path, index_label="time")

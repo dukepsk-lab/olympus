@@ -26,14 +26,13 @@ import numpy as np
 import pandas as pd
 
 from .config import Config
-from .metrics.perf import calmar, max_drawdown
+from .metrics.perf import calmar
 from .validation.cpcv import CombinatorialPurgedKFold
 from .validation.dsr import (
     deflated_sharpe_ratio,
     moments_from_returns,
 )
 from .validation.pbo import probability_of_backtest_overfitting
-from .validation.walkforward import regime_bucket_breakdown
 
 
 @dataclass

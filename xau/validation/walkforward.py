@@ -17,7 +17,7 @@ import pandas as pd
 
 from ..backtest.engine import BacktestResult
 from ..config import Config
-from ..metrics.perf import compute_performance, sharpe
+from ..metrics.perf import sharpe
 
 
 def _bucket_mask(index: pd.DatetimeIndex, start: str, end: str) -> np.ndarray:
