@@ -53,7 +53,7 @@ Failed checks: PBO 0.672 > hard-reject 0.5 · DSR (deflated by the 6 universe tr
 
 ## Done
 - Full 17-module pipeline (scaffold → `run_research.py`), config-driven.
-- **57 tests green** incl. CPCV no-leakage, no-mid-fill, ledger-dedup, sweep, weighting, selection & real-spread guards.
+- **61 tests green** incl. CPCV no-leakage, no-mid-fill, ledger-dedup, sweep, weighting, selection & real-spread guards.
 - `SyntheticSource` / `CsvSource` / `MT5Source` — swap needs zero code change.
 - `scripts/fetch_mt5.py` — live MT5 fetch; pulled full universe from IUX demo.
 - Reproducible (deterministic seed; `zlib.crc32` stable hash).
@@ -151,12 +151,41 @@ equal-weight diversification** on this tape. That is not a disappointment; it is
 the research thesis holding up: broad, cheap diversification is hard to beat, and
 clever symbol selection/weighting is fragile. **Default stays `all` + `equal`.**
 
+## D1 slow-trend overlay — `merge` mode tested, `filter` (veto) stays default
+
+Roadmap #2. The daily trend was already used as a **veto filter** (trade H4 only
+when the daily trend agrees). Added a second mode, **`merge`** (`--d1-mode merge`,
+`features.trend.d1_mode`), that folds the daily trend in as an extra weighted
+momentum **vote** — adding to both direction and conviction — per the research
+that slower-horizon trend is the cleaner signal. Causal (previous completed daily
+bar); `filter` default reproduces byte-for-byte.
+
+Head-to-head on the real IUX tape (trend, net of cost):
+
+| | XAUUSD filter | XAUUSD merge | basket filter | basket merge |
+|---|---:|---:|---:|---:|
+| net return (total) | **+40.8%** | +25.3% | **+18.1%** | +13.6% |
+| Sharpe (ann.) | **+0.72** | +0.48 | **+0.54** | +0.42 |
+| max drawdown | 18.7% | 21.5% | **8.2%** | 9.4% |
+| PBO | — | — | **0.67** | 0.94 |
+| trades (XAU) | 319 | 368 | — | — |
+
+**`merge` is worse everywhere, and the reason is instructive:** the slow signal's
+value here is as a **quality veto** that removes counter-trend H4 trades. Turning
+it into a mere vote *loosens* entry (319→368 trades on gold; more whipsaw on the
+choppy FX pairs), lifting PBO to 0.94. The research's "slower is better" is about
+signal **horizon**, which the system already captures via the daily *filter* —
+demoting it to a vote does not help. **`filter` stays default; `merge` ships as a
+documented, test-covered option.** (Note: a true *standalone* D1 strategy can't
+be validated on this 4.6-year tape — ~1,160 daily bars give far fewer than the
+300-trade gate minimum; that needs the longer history parked on #1.)
+
 ## In progress
 - (none active)
 
 ## Next (priority order)
 1. **Extend the real tape pre-2021** — fill the empty `covid_shock` regime bucket (more regime coverage + statistical power).
-2. **D1 slow-trend overlay** — TSMOM edge is strongest at slower frequencies (config hooks exist).
+2. ~~**D1 slow-trend overlay**~~ — **DONE**: added `merge` mode; underperforms the `filter` veto on this tape (see above). A *standalone* D1 strategy is data-starved here (~1,160 daily bars < 300-trade gate) — needs the longer history in #1.
 3. **Gate-threshold calibration** — XAUUSD sits at DSR 0.92, close; tune only with logged rationale.
 4. ~~**Robustness sweep**~~ — **DONE** (`scripts/robustness_sweep.py`; edge is a plateau, see above).
 5. ~~**Portfolio weighting**~~ — **DONE** (inverse-vol tested; underperforms equal). ~~Follow-up: gate-aware basket~~ — **DONE** (selection on trailing Sharpe also underperforms; see above). Both confirm equal-weight diversification is the baseline to beat.

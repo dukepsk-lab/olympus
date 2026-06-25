@@ -55,6 +55,33 @@ def _finalize(df: pd.DataFrame, side: np.ndarray, conviction: np.ndarray,
     return out
 
 
+def _d1_sign_per_bar(df: pd.DataFrame, d1_df: pd.DataFrame | None,
+                     cfg: TrendConfig) -> np.ndarray | None:
+    """Daily trend sign mapped causally onto each H4 bar (or ``None``).
+
+    The daily momentum sign uses the PREVIOUS completed daily bar (``shift(1)``)
+    so there is no intraday look-ahead. Values are ``+1``/``-1`` where the daily
+    trend is defined and ``nan`` where it is flat/unknown -- the caller decides
+    whether to veto (filter mode) or add it as a vote (merge mode).
+    """
+    if d1_df is None or not cfg.d1_lookbacks or not len(d1_df):
+        return None
+    d1_close = d1_df["close"]
+    d1_score = np.zeros(len(d1_close))
+    dw = np.array([1.0 / np.sqrt(L) for L in cfg.d1_lookbacks])
+    dw = dw / dw.sum()
+    for w, L in zip(dw, cfg.d1_lookbacks):
+        d1_score += w * np.sign((d1_close / d1_close.shift(L) - 1.0).fillna(0.0)).to_numpy()
+    d1_sign = pd.Series(np.sign(d1_score), index=d1_close.index)
+    d1_sign = d1_sign.shift(1).ffill()                    # previous completed day
+    d1_by_date = d1_sign.groupby(d1_sign.index.date).last()
+    h4_dates = pd.Series(df.index.date, index=df.index)
+    mapped = h4_dates.map(d1_by_date).to_numpy()
+    mapped = np.where(np.asarray(mapped, dtype=float) == 0.0, np.nan,
+                      np.asarray(mapped, dtype=float))
+    return mapped
+
+
 def tsmom_signal(df: pd.DataFrame, cfg: TrendConfig, labeling: LabelingConfig,
                  d1_df: pd.DataFrame | None = None) -> pd.DataFrame:
     """Time-series momentum: sign of past return over multiple lookbacks,
@@ -74,34 +101,30 @@ def tsmom_signal(df: pd.DataFrame, cfg: TrendConfig, labeling: LabelingConfig,
     for w, L in zip(weights, lookbacks):
         past_ret = close / close.shift(L) - 1.0
         score += w * np.sign(past_ret.fillna(0.0)).to_numpy()
-    # require simple majority-ish agreement -> side; conviction = |score|
-    side = np.sign(score).astype(int)
-    # only fire when at least ~half the weighted mass agrees
     min_agree = min(0.34, weights.max())
-    conviction = np.where(np.abs(score) >= min_agree, np.abs(score), 0.0)
-    side = np.where(conviction > 0, side, 0)
 
-    # D1 slow filter: only trade in the direction of the higher-TF trend.
-    if d1_df is not None and cfg.d1_lookbacks and len(d1_df):
-        d1_close = d1_df["close"]
-        d1_score = np.zeros(len(d1_close))
-        dw = np.array([1.0 / np.sqrt(L) for L in cfg.d1_lookbacks])
-        dw = dw / dw.sum()
-        for w, L in zip(dw, cfg.d1_lookbacks):
-            d1_score += w * np.sign((d1_close / d1_close.shift(L) - 1.0).fillna(0.0)).to_numpy()
-        d1_sign = pd.Series(np.sign(d1_score), index=d1_close.index)
-        # use the PREVIOUS completed daily bar's sign (no intraday look-ahead)
-        d1_sign = d1_sign.shift(1).ffill()
-        # map daily sign onto the H4 index by the H4 bar's date
-        d1_by_date = d1_sign.groupby(d1_sign.index.date).last()
-        h4_dates = pd.Series(df.index.date, index=df.index)
-        mapped = h4_dates.map(d1_by_date).to_numpy()
-        mapped = np.where(np.asarray(mapped, dtype=float) == 0.0, np.nan,
-                          np.asarray(mapped, dtype=float))
-        # zero out H4 signals that oppose the D1 trend (or where D1 is flat)
-        agree = (np.sign(side) == np.sign(np.nan_to_num(mapped))) & (mapped != 0)
-        side = np.where(agree, side, 0)
-        conviction = np.where(agree, conviction, 0.0)
+    # D1 higher-timeframe trend mapped causally onto each H4 bar (or None).
+    mapped = _d1_sign_per_bar(df, d1_df, cfg)
+
+    if cfg.d1_mode == "merge" and mapped is not None:
+        # MERGE: the daily trend is an extra weighted momentum vote -- it adds to
+        # both direction AND conviction (sizing). Flat/unknown days contribute 0.
+        d1_vote = np.nan_to_num(np.sign(mapped), nan=0.0)
+        score = score + float(cfg.d1_weight) * d1_vote
+        side = np.sign(score).astype(int)
+        conviction = np.where(np.abs(score) >= min_agree,
+                              np.minimum(np.abs(score), 1.0), 0.0)
+        side = np.where(conviction > 0, side, 0)
+    else:
+        # FILTER (default): H4 side/conviction, then VETO any bar the daily trend
+        # opposes (or where the daily trend is flat). Unchanged legacy behaviour.
+        side = np.sign(score).astype(int)
+        conviction = np.where(np.abs(score) >= min_agree, np.abs(score), 0.0)
+        side = np.where(conviction > 0, side, 0)
+        if mapped is not None:
+            agree = (np.sign(side) == np.sign(np.nan_to_num(mapped))) & (mapped != 0)
+            side = np.where(agree, side, 0)
+            conviction = np.where(agree, conviction, 0.0)
 
     # trend: WIDE target (let winners run to the vertical barrier) + wide disaster
     # stop. This is what produces the documented low-win-rate / high-payoff shape;

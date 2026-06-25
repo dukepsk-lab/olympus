@@ -227,6 +227,9 @@ def main() -> int:
     ap.add_argument("--basket-mode", choices=("all", "gate_aware"), default="all",
                     help="universe basket: 'all' symbols, or 'gate_aware' (select "
                          "symbols causally on a train slice, evaluate OOS)")
+    ap.add_argument("--d1-mode", choices=("filter", "merge"), default=None,
+                    help="override trend D1 overlay: 'filter' (veto) or 'merge' "
+                         "(daily trend as an extra weighted momentum vote)")
     args = ap.parse_args()
 
     config = load_config(args.config)
@@ -235,6 +238,12 @@ def main() -> int:
         config = dataclasses.replace(
             config, money=dataclasses.replace(config.money,
                                               portfolio_weighting=args.weighting))
+    if args.d1_mode is not None:
+        import dataclasses
+        config = dataclasses.replace(
+            config, features=dataclasses.replace(
+                config.features,
+                trend=dataclasses.replace(config.features.trend, d1_mode=args.d1_mode)))
     set_global_seed(config.seed)
     source = make_source(config)
     ledger = TrialLedger(args.ledger)

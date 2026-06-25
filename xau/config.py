@@ -72,6 +72,13 @@ class TrendConfig:
     lookbacks: tuple[int, ...] = (20, 60, 120)
     d1_lookbacks: tuple[int, ...] = (20, 50)
     vol_halflife: int = 20
+    # D1 higher-timeframe overlay mode:
+    #   filter = trade H4 only WHEN the daily trend agrees (a veto; default).
+    #   merge  = fold the daily trend in as an extra weighted momentum vote, so
+    #            it adds to BOTH direction and conviction (sizing), per the
+    #            research that slower-horizon trend is the cleaner signal.
+    d1_mode: str = "filter"
+    d1_weight: float = 0.5     # weight of the D1 vote in `merge` mode
     # NB: vol-targeting is NOT a separate scalar here -- it is achieved structurally
     # by stop_distance (= sl_mult * vol * price) feeding fixed-fractional sizing, so
     # per-trade risk is ~constant in vol. A standalone `vol_target_annual` was dead
@@ -287,6 +294,8 @@ def load_config(path: str | Path) -> Config:
             lookbacks=_as_tuple(ft.get("lookbacks", (20, 60, 120))),
             d1_lookbacks=_as_tuple(ft.get("d1_lookbacks", (20, 50))),
             vol_halflife=int(ft.get("vol_halflife", 20)),
+            d1_mode=str(ft.get("d1_mode", "filter")),
+            d1_weight=float(ft.get("d1_weight", 0.5)),
         ),
         breakout=BreakoutConfig(
             opening_range_bars=int(fb.get("opening_range_bars", 3)),
