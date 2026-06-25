@@ -40,7 +40,7 @@ def test_real_spread_feeds_bid_ask_half_each_side():
     assert bid < mid < ask
 
 
-@pytest.mark.parametrize("bad", [None, 0.0, -5.0, float("nan")])
+@pytest.mark.parametrize("bad", [None, -5.0, float("nan")])
 def test_degenerate_real_spread_falls_back_to_base(bad):
     cm = _cm()
     ts = pd.Timestamp("2023-06-01 13:00", tz="UTC")

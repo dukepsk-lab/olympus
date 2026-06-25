@@ -63,7 +63,7 @@ class CostModel:
         """
         if real_spread_points is not None:
             rsp = float(real_spread_points)
-            if rsp == rsp and rsp > 0:  # finite (NaN != NaN) and positive
+            if rsp == rsp and rsp >= 0:  # finite (NaN != NaN) and non-negative
                 return rsp
         spec = self._spec(symbol)
         spread = spec.base_spread_points

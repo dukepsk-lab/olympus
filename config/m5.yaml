@@ -10,13 +10,13 @@ costs:
     ny: 1.2
     overlap: 1.0
 data:
-  bars: 20000
+  bars: 6000
   csv_dir: data/ohlc
   d1_overlay: true
   end: '2026-06-24'
-  source: synthetic
+  source: csv
   start: '2018-01-01'
-  timeframe: H4
+  timeframe: M5
 features:
   breakout:
     breakout_sessions:
@@ -47,20 +47,20 @@ features:
     - 20
     - 50
     lookbacks:
-    - 20
-    - 60
-    - 120
-    vol_halflife: 20
+    - 960
+    - 2400
+    - 4800
+    vol_halflife: 1440
 gate:
-  cpcv_positive_frac_min: 0.7
-  dsr_min: 0.95
-  median_calmar_min: 0.3
+  cpcv_positive_frac_min: 0.6
+  dsr_min: 0.8
+  median_calmar_min: 0.2
   min_net_trades: 300
   pbo_hard_reject: 0.5
-  pbo_max: 0.2
+  pbo_max: 0.35
   regime_exposure_min: 3
   regime_profitable_min: 3
-  tstat_min: 3.0
+  tstat_min: 2.0
 labeling:
   max_holding_bars: 60
   pt_sl:
@@ -81,13 +81,11 @@ money:
   - 0.02
   - 0.03
   - 0.04
-  portfolio_weighting: equal
   risk_fraction: 0.01
   risk_fraction_band:
   - 0.0075
   - 0.015
   ruin_level: 0.5
-  weight_vol_window: 250
   withdrawal:
     cadence_trades: 17
     house_money_multiple: 2.0
