@@ -69,6 +69,9 @@ SYNTH_BASE: dict[str, dict] = {
     "USDJPY": dict(price=150.0, ann_vol=0.10, drift=0.02),
     "US30":   dict(price=38000.0, ann_vol=0.16, drift=0.06),
     "BTCUSD": dict(price=60000.0, ann_vol=0.65, drift=0.20),
+    "AUDUSD": dict(price=0.67, ann_vol=0.10, drift=0.0),
+    "XAGUSD": dict(price=24.0, ann_vol=0.25, drift=0.02),
+    "USOIL":  dict(price=75.0, ann_vol=0.35, drift=0.0),
 }
 
 # Regime segments shared across the universe (risk-off correlation is real and the

@@ -185,10 +185,12 @@ symbols:
     digits: 2
     point: 0.01
     slippage_points: 2.0
-# Breadth candidates (AUDUSD, NAS100, USOIL, XAGUSD specs above) are
-# deliberately NOT listed here yet -- no real tape for them. Add a symbol to
-# this list only after `scripts/fetch_mt5.py` has written its CSV under
-# data/ohlc/, never before (an entry with no CSV will crash the run).
+# This is the synthetic-illustration template, kept at the original 6 symbols.
+# The breadth-expanded 9-symbol universe (with AUDUSD/XAGUSD/USOIL) is a
+# REAL-TAPE experiment and lives in config/csv.yaml -- synthetic versions of
+# those three are poorly scale-calibrated (illustrative only), so they are not
+# mixed into this template. Their SymbolSpecs above + SYNTH_BASE priors still
+# allow an explicit single-symbol synthetic run if wanted.
 universe:
 - XAUUSD
 - EURUSD

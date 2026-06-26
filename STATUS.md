@@ -1,7 +1,7 @@
 # STATUS
 
 **Last updated:** 2026-06-25
-**Data source:** REAL — IUX Markets demo (H4, **2018-01-02 → 2026-06-25, ~13.5k bars/symbol**)
+**Data source:** REAL — IUX Markets demo (H4). XAUUSD/EUR/GBP/JPY/US30/BTC run **2018-01-02 → 2026-06-25** (~13.5k bars); the 3 breadth additions (AUDUSD/XAGUSD/USOIL, fetched 2026-06-26) start **2021-11** (~5.6-6.7k bars — IUX history limit for those symbols).
 **State:** Validation engine complete; validated end-to-end on live broker tape. No config yet **PROMOTED** — by design (skeptical gate).
 
 > Verdict vocabulary is **PROMOTED / REJECTED** with evidence. Nothing here guarantees profit. All metrics are **net of spread + commission + slippage**; fills on **bid/ask only** (no mid).
@@ -27,30 +27,35 @@
 
 Failed checks: DSR 0.9498 < 0.95 (razor-thin) · t-stat 1.64 < 3.0 · PBO 0.336 > 0.20 · median Calmar 0.273 < 0.30. **Now passes** regime breadth (**3/4** profitable: covid_shock, fed_hiking, rally_2023-25) and CPCV+ (**71%** ≥ 70%) — both improved once the 2018-2020 history filled the previously-empty covid/fed buckets. **Real edge, correct convex shape, the longer tape strengthened it (2/4→3/4 regimes), but it is still not statistically conclusive for one symbol** — the binding rejections are now t-stat and PBO, not breadth.
 
-### Universe — single-symbol trend (full tape, commission-free account, net of cost)
+### Universe — single-symbol trend (real IUX tape, commission-free account, net of cost)
 | symbol | net return | CAGR | Sharpe | trades | regimes+ | verdict |
 |---|---:|---:|---:|---:|:--:|---|
 | BTCUSD | +185.8% | +8.7% | +0.54 | 938 | 3/4 | REJECTED |
 | XAUUSD | +79.7% | +6.5% | +0.54 | 730 | 3/4 | REJECTED |
 | USDJPY | −6.1% | −0.7% | +0.02 | 699 | 2/4 | REJECTED |
+| XAGUSD | −4.8% | −1.1% | −0.02 | 328 | 0/4 | REJECTED |
 | US30 | −23.3% | −3.5% | −0.19 | 554 | 2/4 | REJECTED |
 | EURUSD | −24.9% | −3.0% | −0.17 | 651 | 2/4 | REJECTED |
 | GBPUSD | −29.3% | −3.7% | −0.22 | 698 | 2/4 | REJECTED |
+| USOIL | −30.5% | −9.0% | −0.64 | 303 | 1/4 | REJECTED |
+| AUDUSD | −47.9% | −13.3% | −1.09 | 299 | 1/4 | REJECTED |
 
-Only **XAUUSD and BTCUSD** carry a positive trend edge on the full tape — both with the textbook convex signature (win rate 26%/31%, PF 1.16/1.30). Note USDJPY, which looked positive (+45%) on the shorter 2021-only tape, **flipped to ~flat (−6%)** once 2018-2020 was added — a clean reminder that short samples flatter non-edges. The FX pairs and US30 have **no** trend edge net of cost.
+Only **XAUUSD and BTCUSD** carry a positive trend edge net of cost — both with the textbook convex signature (win rate 26%/31%, PF 1.16/1.30). Note USDJPY, which looked positive (+45%) on the shorter 2021-only tape, **flipped to ~flat (−6%)** once 2018-2020 was added — a clean reminder that short samples flatter non-edges. The 3 breadth additions (AUDUSD/XAGUSD/USOIL, fetched 2026-06-26) all have **no** trend edge here — even silver, which usually co-trends with gold, is flat net of cost on this retail-CFD tape.
 
-### Diversified basket (equal-fraction, full tape)
-| metric | value |
-|---|---|
-| Sharpe (ann.) | +0.31 |
-| Net return (total) | +30.3% |
-| Annualised return (CAGR) | +2.1% |
-| Max drawdown | 19.9% |
-| CPCV paths positive | 69% |
-| PBO | 0.274 |
-| **Verdict** | **REJECTED** |
+### Diversified basket — 9 symbols vs original 6 (equal-fraction, real tape)
+| metric | 6-symbol | 9-symbol (current default) |
+|---|---:|---:|
+| Sharpe (ann.) | +0.31 | **+0.17** |
+| Net return (total) | +30.3% | +11.0% |
+| Annualised return (CAGR) | +2.1% | +0.8% |
+| Max drawdown | 19.9% | **13.5%** |
+| CPCV paths positive | 69% | 60% |
+| t-stat | — | 0.62 |
+| PBO | 0.274 | 0.289 |
+| median Calmar | — | 0.126 |
+| **Verdict** | **REJECTED** | **REJECTED** |
 
-Failed checks: PBO 0.274 > 0.20 · DSR (deflated by the 6 universe trials) · t-stat < 3.0 · CPCV+ 69% < 70%. The equal-weight basket is dragged by the four non-trending symbols (EUR/GBP/US30/JPY) that the broad-diversification thesis still includes; max DD 19.9%. (Inverse-vol weighting and gate-aware selection were both tested as fixes and made it **worse** — see below.)
+**Breadth expansion — honest negative result.** The literature lever (diversify across more uncorrelated markets) was tested with *real* tape, not synthetic: AUDUSD, XAGUSD, USOIL added to the universe. It **lowered max drawdown (19.9% → 13.5%, diversification working as advertised) but cut returns/Sharpe and pushed t-stat the wrong way (→ 0.62, further from the 3.0 bar).** The reason is the crucial caveat to "breadth helps": TSMOM's ~50-market result assumes each market *carries* the trend edge. These three **don't** net of cost, so equal-weighting them just dilutes the two genuine trenders (XAU, BTC) with flat-to-negative votes. The verdict stays REJECTED, now bound by t-stat 0.62 < 3.0 and median Calmar 0.126. **Lesson, consistent with the inverse-vol and gate-aware experiments: cheap broad diversification only pays when the added markets actually trend — it cannot manufacture an edge from markets that have none.** The 3 specs + tape are kept; whether to run the 9-symbol or 6-symbol universe is a documented choice, not an auto-promotion.
 
 ---
 
@@ -232,20 +237,14 @@ and history (more bars) are next, not a model swap.
 1. ~~**Extend the real tape pre-2021**~~ — **DONE**: tape now runs 2018-01-02 →
    2026-06-25 (~13.5k bars/symbol), filling the `covid_shock`/`fed_hiking`
    regime buckets. Lifted XAUUSD regime breadth 2/4 → 3/4 and CPCV+ to 71%.
-1b. **Breadth expansion (prepped, blocked on MT5 access)** — TSMOM's evidence
-   base (Moskowitz-Ooi-Pedersen) gets its power from diversifying across ~50+
-   uncorrelated markets; we have 6, and only 2 (XAUUSD, BTCUSD) carry a real
-   trend edge on the full tape. This is the highest-leverage lever left for the
-   binding t-stat/PBO failures. Added documented-assumption `SymbolSpec`s for
-   4 candidates spanning new asset classes not yet in the universe — **AUDUSD**
-   (commodity-currency FX), **XAGUSD** (silver, metals diversifier vs. gold),
-   **USOIL** (energy, a classic TSMOM market), **NAS100** (tech equity index,
-   different sector tilt than US30) — in `config/{default,csv}.yaml`. They are
-   **deliberately NOT in `universe:`** yet (no real tape exists for them).
-   Once MT5 is reachable: `python scripts/fetch_mt5.py --config config/csv.yaml
-   --symbol AUDUSD --symbol XAGUSD --symbol USOIL --symbol NAS100` (real spread
-   pulled automatically, same as the existing 6), then add them to `universe:`
-   and re-run the basket before trusting any number from them.
+1b. ~~**Breadth expansion**~~ — **DONE (honest negative)**: fetched real IUX tape
+   for **AUDUSD, XAGUSD, USOIL** (NAS100 is not served under that name on the IUX
+   server — needs the correct symbol, e.g. `USTEC`/`US100`) and added them to the
+   universe. The result drags the basket (Sharpe 0.31 → 0.17, t-stat → 0.62)
+   while lowering max DD (19.9% → 13.5%) — see "Breadth expansion" above. None of
+   the three carry a trend edge net of cost, so diversifying into them dilutes
+   rather than strengthens. Confirms breadth only pays when the added markets
+   actually trend.
 2. ~~**D1 slow-trend overlay**~~ — **DONE**: added `merge` mode; underperforms the `filter` veto on this tape (see above). A *standalone* D1 strategy is data-starved here (~1,160 daily bars < 300-trade gate) — needs the longer history in #1.
 3. ~~**Gate-threshold calibration**~~ — **DONE**: named profiles (strict default + documented single_hypothesis), diagnostic in scripts/gate_calibration.py. Loosening cannot rescue XAUUSD (multi-fail) — see above.
 4. ~~**Robustness sweep**~~ — **DONE** (`scripts/robustness_sweep.py`; edge is a plateau, see above).

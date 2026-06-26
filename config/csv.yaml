@@ -183,10 +183,13 @@ symbols:
     digits: 2
     point: 0.01
     slippage_points: 2.0
-# Breadth candidates (AUDUSD, NAS100, USOIL, XAGUSD specs above) are
-# deliberately NOT listed here yet -- no real tape for them. Add a symbol to
-# this list only after `scripts/fetch_mt5.py` has written its CSV under
-# data/ohlc/, never before (an entry with no CSV will crash the run).
+# Breadth-expanded universe: the original 6 + 3 new asset classes whose real
+# IUX tape is now committed (AUDUSD commodity-FX, XAGUSD silver, USOIL energy).
+# Honest result (see STATUS): the 3 additions have no trend edge net of cost and
+# DRAG the basket (Sharpe 0.31->0.17) while cutting max DD (19.9%->13.5%).
+# NAS100 is NOT here -- IUX serves it under a different symbol name (see STATUS),
+# so its CSV does not exist yet. Add a symbol here only after fetch_mt5.py has
+# written its CSV under data/ohlc/, never before.
 universe:
 - XAUUSD
 - EURUSD
@@ -194,6 +197,9 @@ universe:
 - USDJPY
 - US30
 - BTCUSD
+- AUDUSD
+- XAGUSD
+- USOIL
 validation:
   cpcv:
     embargo_pct: 0.01
