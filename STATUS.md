@@ -61,7 +61,7 @@ Only **XAUUSD and BTCUSD** carry a positive trend edge net of cost — both with
 
 ## Done
 - Full 17-module pipeline (scaffold → `run_research.py`), config-driven.
-- **71 tests green** incl. CPCV no-leakage, no-mid-fill, ledger-dedup, sweep, weighting, selection, real-spread & volume-filter guards.
+- **74 tests green** incl. CPCV no-leakage, no-mid-fill, ledger-dedup, sweep, weighting, selection, real-spread, volume-filter & reversion-signal guards.
 - `SyntheticSource` / `CsvSource` / `MT5Source` — swap needs zero code change.
 - `scripts/fetch_mt5.py` — live MT5 fetch; pulled full universe from IUX demo.
 - Reproducible (deterministic seed; `zlib.crc32` stable hash).
@@ -249,6 +249,39 @@ Even the best point still fails PBO (0.362 > 0.20 hard max). **Default stays
 OFF**; the filter is available for anyone who wants to spend a ledger trial on
 it deliberately, not folded into the headline config.
 
+## Strategy families on XAUUSD — breakout & reversion both negative; trend stays the only edge
+
+Ran `breakout` and `reversion` (the other two signal families already in the
+codebase) through the same gate on the same real XAUUSD tape as the trend
+focal table, to check whether either adds an *independent* signal on this
+instrument:
+
+| strategy | net% | Sharpe | maxDD% | win% | PF | trades | t-stat | DSR | PBO | CPCV+% | reg+/4 | verdict |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|
+| trend | +79.7 | 0.54 | 25.0 | 26.0 | 1.16 | 730 | 1.64 | 0.950 | 0.336 | 71 | 3 | REJECTED |
+| breakout | -61.0 | -0.90 | 66.5 | 31.3 | 0.87 | 2,133 | -2.75 | 0.003 | 0.227 | 7 | 0 | REJECTED |
+| reversion | -2.1 | -0.10 | 4.4 | 32.5 | 0.92 | 80 | -0.30 | 0.381 | 0.262 | 38 | 2 | REJECTED |
+
+**Both confirm their own design docstrings rather than contradict them.**
+`opening_range_breakout`'s module docstring already states the equity
+opening-range edge "does NOT transfer cleanly to spot gold" — net of cost on
+H4 it loses badly (Sharpe -0.90, 2,133 trades, t-stat -2.75: a *negative*
+edge, not noise). `reversion_signal`'s docstring calls short-horizon mean
+reversion "largely bid-ask bounce" that "usually dies net of retail spread" —
+confirmed (flat-to-slightly-negative, only 80 range-gated trades over the
+whole tape). Neither adds independent evidence for XAUUSD; **trend remains
+the only strategy family with a real edge on this instrument.**
+
+**Bug found and fixed while running this:** `reversion_signal`'s enabled path
+called `_finalize(..., labeling.pt_sl[1])` — one positional argument short of
+the required `(pt_mult, sl_mult)` pair, so it crashed (`TypeError`) the instant
+`features.reversion.enabled=True`. Invisible until now because no test ever
+exercised the enabled path (`enabled=False` is the config default) and no
+experiment had turned it on. Fixed (`xau/features/reversion.py`) to match the
+disabled-path call right above it; added `tests/test_reversion_signal.py`
+(enabled-path runs cleanly, fires only in `range` regime, fails closed with no
+regime classifier).
+
 ## In progress
 - (none active)
 
@@ -281,7 +314,8 @@ and history (more bars) are next, not a model swap.
 6. ~~**Hygiene**~~ — **DONE**: `ruff` clean (config in `pyproject.toml`, run in CI) + GitHub Actions (pytest + synthetic smoke-test).
 7. ~~*(Cleanup)* dead `vol_target_annual`~~ — **DONE** (removed; vol-targeting is structural).
 8. ~~**Volume-confirmation filter**~~ — **DONE (inconclusive, OFF by default)**: see above; non-monotonic across the ratio sweep, best point still fails PBO.
-9. **Macro features (DXY, US Treasury yields)** — NOT started. No exogenous-series ingestion exists yet (`make_source()` only loads single-symbol OHLCV+spread); would need (a) a new data path for an external index/yield series, (b) a re-estimated causal feature (e.g. rolling z-score/correlation, never a fixed gold↔real-yield rule — see README §1.4), (c) the same CPCV/PBO/DSR gate, no shortcut. Blocked on confirming whether IUX serves a DXY/yield-proxy symbol at all.
+9. ~~**Breakout/reversion on XAUUSD**~~ — **DONE (honest negative)**: both underperform trend (breakout actively loses, reversion is flat) — see above. Trend stays the only signal family on this instrument. Also fixed a real `reversion_signal` crash bug found in the process.
+10. **Macro features (DXY, US Treasury yields)** — NOT started. No exogenous-series ingestion exists yet (`make_source()` only loads single-symbol OHLCV+spread); would need (a) a new data path for an external index/yield series, (b) a re-estimated causal feature (e.g. rolling z-score/correlation, never a fixed gold↔real-yield rule — see README §1.4), (c) the same CPCV/PBO/DSR gate, no shortcut. Blocked on confirming whether IUX serves a DXY/yield-proxy symbol at all.
 
 ## Out of scope (by design)
 - Live order routing (research-only).

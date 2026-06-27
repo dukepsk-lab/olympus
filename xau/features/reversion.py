@@ -54,7 +54,8 @@ def reversion_signal(df: pd.DataFrame, cfg: ReversionConfig,
         side[:] = 0
         conviction[:] = 0.0
 
-    return _finalize(df, side, conviction, vol, labeling.pt_sl[1])
+    return _finalize(df, side, conviction, vol,
+                     pt_mult=labeling.pt_sl[0], sl_mult=labeling.pt_sl[1])
 
 
 __all__ = ["reversion_signal"]
