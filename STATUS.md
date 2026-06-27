@@ -61,7 +61,7 @@ Only **XAUUSD and BTCUSD** carry a positive trend edge net of cost — both with
 
 ## Done
 - Full 17-module pipeline (scaffold → `run_research.py`), config-driven.
-- **66 tests green** incl. CPCV no-leakage, no-mid-fill, ledger-dedup, sweep, weighting, selection & real-spread guards.
+- **71 tests green** incl. CPCV no-leakage, no-mid-fill, ledger-dedup, sweep, weighting, selection, real-spread & volume-filter guards.
 - `SyntheticSource` / `CsvSource` / `MT5Source` — swap needs zero code change.
 - `scripts/fetch_mt5.py` — live MT5 fetch; pulled full universe from IUX demo.
 - Reproducible (deterministic seed; `zlib.crc32` stable hash).
@@ -220,6 +220,35 @@ threshold. The `single_hypothesis` profile *would* flip a config that is strong
 everywhere except a t-stat in (2.0, 3.0) — none exists here. **`strict` stays
 default.**
 
+## Volume-confirmation filter — tested, kept OFF (inconclusive, default unchanged)
+
+Added an opt-in veto to `tsmom_signal` (`xau/features/trend.py`, `TrendConfig.
+volume_filter_enabled`): a bar only fires if its volume is ≥ `volume_min_ratio`
+times its own trailing rolling median (causal; warmup bars fail closed). OFF by
+default — it never changes existing behaviour unless explicitly enabled. Caveat:
+MT5/broker "volume" on FX/CFD is **tick volume** (a participation proxy), not a
+real exchange print count.
+
+Swept `volume_min_ratio` on XAUUSD (real IUX tape, same gate as the focal table):
+
+| filter | net% | Sharpe | maxDD% | trades | t-stat | DSR | PBO | CPCV+% | verdict |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---|
+| OFF (baseline) | +79.7 | 0.54 | 25.0 | 730 | 1.64 | 0.950 | 0.336 | 71 | REJECTED |
+| ratio ≥ 0.8 | +73.1 | 0.51 | 22.6 | 712 | 1.56 | 0.941 | 0.366 | 64 | REJECTED |
+| ratio ≥ 1.0 | +61.6 | 0.46 | 26.3 | 687 | 1.39 | 0.918 | 0.381 | 58 | REJECTED |
+| ratio ≥ 1.2 | -4.1 | 0.11 | 55.1 | 629 | 0.35 | 0.626 | 0.679 | 60 | REJECTED |
+| ratio ≥ 1.5 | +99.9 | 0.67 | 19.0 | 553 | 2.05 | 0.980 | 0.362 | 80 | REJECTED |
+
+**Honest read: no monotonic relationship, no rescue.** `ratio≥1.2` collapses
+(Sharpe 0.11) while the *more* restrictive `ratio≥1.5` looks best on most
+metrics (Sharpe 0.67, t-stat 2.05, DSR 0.98) — that non-monotonic bounce across
+a 5-point grid is itself the multiple-testing trap the gate guards against:
+picking "1.5 because it's the best of 5" without paying for those 5 trials would
+be exactly the kind of post-hoc cherry-pick the `TrialLedger`/PBO exist to catch.
+Even the best point still fails PBO (0.362 > 0.20 hard max). **Default stays
+OFF**; the filter is available for anyone who wants to spend a ledger trial on
+it deliberately, not folded into the headline config.
+
 ## In progress
 - (none active)
 
@@ -251,6 +280,8 @@ and history (more bars) are next, not a model swap.
 5. ~~**Portfolio weighting**~~ — **DONE** (inverse-vol tested; underperforms equal). ~~Follow-up: gate-aware basket~~ — **DONE** (selection on trailing Sharpe also underperforms; see above). Both confirm equal-weight diversification is the baseline to beat.
 6. ~~**Hygiene**~~ — **DONE**: `ruff` clean (config in `pyproject.toml`, run in CI) + GitHub Actions (pytest + synthetic smoke-test).
 7. ~~*(Cleanup)* dead `vol_target_annual`~~ — **DONE** (removed; vol-targeting is structural).
+8. ~~**Volume-confirmation filter**~~ — **DONE (inconclusive, OFF by default)**: see above; non-monotonic across the ratio sweep, best point still fails PBO.
+9. **Macro features (DXY, US Treasury yields)** — NOT started. No exogenous-series ingestion exists yet (`make_source()` only loads single-symbol OHLCV+spread); would need (a) a new data path for an external index/yield series, (b) a re-estimated causal feature (e.g. rolling z-score/correlation, never a fixed gold↔real-yield rule — see README §1.4), (c) the same CPCV/PBO/DSR gate, no shortcut. Blocked on confirming whether IUX serves a DXY/yield-proxy symbol at all.
 
 ## Out of scope (by design)
 - Live order routing (research-only).

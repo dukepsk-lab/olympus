@@ -82,6 +82,22 @@ def _d1_sign_per_bar(df: pd.DataFrame, d1_df: pd.DataFrame | None,
     return mapped
 
 
+def _volume_confirm_mask(df: pd.DataFrame, cfg: TrendConfig) -> np.ndarray | None:
+    """Causal volume-confirmation mask, or ``None`` if the filter is off.
+
+    A bar passes when its volume is at least ``volume_min_ratio`` times the
+    trailing rolling median volume (rolling window ends at the current bar, so
+    no look-ahead). Bars in the warmup window (insufficient history) fail closed
+    (``False``) rather than trading on an undefined ratio.
+    """
+    if not cfg.volume_filter_enabled or "volume" not in df.columns:
+        return None
+    vol = df["volume"].astype(float)
+    roll_med = vol.rolling(cfg.volume_window, min_periods=cfg.volume_window).median()
+    ratio = vol / roll_med.replace(0.0, np.nan)
+    return (ratio >= cfg.volume_min_ratio).fillna(False).to_numpy()
+
+
 def tsmom_signal(df: pd.DataFrame, cfg: TrendConfig, labeling: LabelingConfig,
                  d1_df: pd.DataFrame | None = None) -> pd.DataFrame:
     """Time-series momentum: sign of past return over multiple lookbacks,
@@ -125,6 +141,11 @@ def tsmom_signal(df: pd.DataFrame, cfg: TrendConfig, labeling: LabelingConfig,
             agree = (np.sign(side) == np.sign(np.nan_to_num(mapped))) & (mapped != 0)
             side = np.where(agree, side, 0)
             conviction = np.where(agree, conviction, 0.0)
+
+    vol_mask = _volume_confirm_mask(df, cfg)
+    if vol_mask is not None:
+        side = np.where(vol_mask, side, 0)
+        conviction = np.where(vol_mask, conviction, 0.0)
 
     # trend: WIDE target (let winners run to the vertical barrier) + wide disaster
     # stop. This is what produces the documented low-win-rate / high-payoff shape;

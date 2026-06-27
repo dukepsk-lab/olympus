@@ -83,6 +83,15 @@ class TrendConfig:
     # by stop_distance (= sl_mult * vol * price) feeding fixed-fractional sizing, so
     # per-trade risk is ~constant in vol. A standalone `vol_target_annual` was dead
     # config (parsed, never read) and was removed.
+    # Optional volume-confirmation veto (default OFF -- experimental, must clear the
+    # gate before becoming default-on). Vetoes bars where current volume is below
+    # `volume_min_ratio` times its own trailing rolling median, i.e. trades only
+    # fire on bars with at-least-typical participation. Causal (rolling window ends
+    # at the current bar). NB: MT5/broker "volume" on FX/CFD is TICK volume, not
+    # real exchange volume -- a proxy for participation, not a literal count.
+    volume_filter_enabled: bool = False
+    volume_window: int = 20
+    volume_min_ratio: float = 1.0
 
 
 @dataclass(frozen=True)
@@ -296,6 +305,9 @@ def load_config(path: str | Path) -> Config:
             vol_halflife=int(ft.get("vol_halflife", 20)),
             d1_mode=str(ft.get("d1_mode", "filter")),
             d1_weight=float(ft.get("d1_weight", 0.5)),
+            volume_filter_enabled=bool(ft.get("volume_filter_enabled", False)),
+            volume_window=int(ft.get("volume_window", 20)),
+            volume_min_ratio=float(ft.get("volume_min_ratio", 1.0)),
         ),
         breakout=BreakoutConfig(
             opening_range_bars=int(fb.get("opening_range_bars", 3)),
